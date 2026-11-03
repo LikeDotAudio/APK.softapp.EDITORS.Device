@@ -3,528 +3,266 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Device Library & Chassis Editor — APK.audio</title>
+  <title>Device Library & Chassis Editor · Standalone Block Editor</title>
+  <link rel="stylesheet" href="./css/theme.css">
   <style>
-    :root {
-      --bg: #090d16;
-      --panel: #131b2e;
-      --card: #1e293b;
-      --border: #2e3c54;
-      --accent: #f97316;
-      --text: #f8fafc;
-      --text-dim: #94a3b8;
-      --green: #22c55e;
-      --blue: #38bdf8;
+    .device-app-container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      height: calc(100vh - 40px);
+      overflow: hidden;
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: ui-sans-serif, system-ui, sans-serif; }
-    body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
 
-    /* Left Sidebar: Device Library */
-    .library-sidebar {
-      width: 340px;
-      background: var(--panel);
-      border-right: 1px solid var(--border);
+    .device-sidebar {
+      background: var(--osc-bg-surface);
+      border-right: 1px solid var(--osc-border-default);
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
-    .library-header {
-      padding: 16px;
-      border-bottom: 1px solid var(--border);
-    }
-    .library-title {
-      font-size: 14px;
-      font-weight: 700;
+
+    .sidebar-header {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--osc-border-default);
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--accent);
+      flex-direction: column;
+      gap: 8px;
     }
-    .search-input {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 12px;
-      outline: none;
-    }
-    .search-input:focus { border-color: var(--accent); }
+
     .device-list {
       flex: 1;
       overflow-y: auto;
       padding: 8px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
     }
-    .device-item {
-      padding: 10px 12px;
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
-    .device-item:hover { border-color: var(--accent); }
-    .device-item.active { border-color: var(--accent); background: #28354d; }
-    .device-item-mfg { font-size: 10px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; }
-    .device-item-model { font-size: 13px; font-weight: 600; margin: 2px 0; }
-    .device-item-meta { font-size: 11px; color: var(--text-dim); display: flex; gap: 8px; }
 
-    /* Main Content: Device Editor */
-    .main-editor {
-      flex: 1;
+    .main-editor-stage {
+      display: grid;
+      grid-template-rows: auto 1fr 240px;
+      overflow: hidden;
+      background: var(--osc-bg-base);
+    }
+
+    .properties-bar {
+      background: var(--osc-bg-surface);
+      border-bottom: 1px solid var(--osc-border-default);
+      padding: 12px 16px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .form-group {
       display: flex;
       flex-direction: column;
-      overflow-y: auto;
-      background: var(--bg);
+      gap: 4px;
     }
-    .editor-topbar {
-      padding: 16px 24px;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--panel);
-    }
-    .editor-title { font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    .btn-group { display: flex; gap: 8px; }
-    .btn {
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 7px 14px;
-      border-radius: 6px;
-      font-size: 12px;
+
+    .form-group label {
+      font-size: 10px;
       font-weight: 600;
-      cursor: pointer;
-    }
-    .btn:hover { background: var(--border); }
-    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
-    .btn-primary:hover { background: #ea580c; }
-    .btn-danger { background: #dc2626; border-color: #dc2626; color: #fff; }
-
-    .editor-body {
-      padding: 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
-    }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-    .card-section {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 18px;
-    }
-    .section-title {
-      font-size: 12px;
-      font-weight: 700;
+      color: var(--osc-text-muted);
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: var(--accent);
-      margin-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 8px;
     }
-    .form-group { margin-bottom: 12px; }
-    .form-label { display: block; font-size: 11px; text-transform: uppercase; color: var(--text-dim); font-weight: 600; margin-bottom: 4px; }
-    .form-input, .form-select {
-      width: 100%;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 8px 10px;
-      border-radius: 5px;
-      font-size: 13px;
-    }
-    .form-input:focus, .form-select:focus { border-color: var(--accent); outline: none; }
 
-    /* Visual Chassis / Port Rack Preview */
-    .chassis-preview {
-      background: #000;
-      border: 2px solid #475569;
-      border-radius: 6px;
-      padding: 16px;
-      min-height: 120px;
+    .chassis-preview-panel {
+      padding: 20px;
       display: flex;
       flex-direction: column;
+      align-items: center;
       justify-content: center;
-      position: relative;
-    }
-    .rack-faceplate {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: #111827;
-      border: 1px solid #374151;
-      padding: 12px 16px;
-      border-radius: 4px;
-    }
-    .ports-grid {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      margin-top: 12px;
-    }
-    .port-chip {
-      background: #1e293b;
-      border: 1px solid #3b82f6;
-      border-radius: 4px;
-      padding: 6px 10px;
-      font-size: 11px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .port-chip-count {
-      background: #3b82f6;
-      color: #fff;
-      font-size: 10px;
-      padding: 1px 5px;
-      border-radius: 10px;
-      font-weight: 700;
+      background: radial-gradient(circle at 50% 50%, #151F38 0%, #080C16 100%);
+      overflow: auto;
     }
 
-    table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th { text-align: left; padding: 8px; color: var(--text-dim); border-bottom: 1px solid var(--border); font-size: 11px; }
-    td { padding: 8px; border-bottom: 1px solid #1a2333; }
+    .chassis-preview-panel svg {
+      max-width: 95%;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+      border-radius: 4px;
+    }
+
+    .ports-grid-panel {
+      border-top: 1px solid var(--osc-border-default);
+      background: var(--osc-bg-surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .ports-grid-header {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--osc-border-default);
+      background: var(--osc-bg-surface-hover);
+    }
+
+    .ports-table-container {
+      flex: 1;
+      overflow: auto;
+    }
+
+    table.ports-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    table.ports-table th {
+      position: sticky;
+      top: 0;
+      background: var(--osc-bg-input);
+      color: var(--osc-text-muted);
+      padding: 6px 8px;
+      text-align: left;
+      border-bottom: 1px solid var(--osc-border-default);
+      font-weight: 600;
+      z-index: 2;
+    }
+
+    table.ports-table td {
+      padding: 2px 4px;
+      border-bottom: 1px solid var(--osc-border-default);
+    }
+
+    .cell-input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid transparent;
+      color: var(--osc-text-primary);
+      padding: 4px 6px;
+      font-size: 11px;
+      border-radius: 2px;
+      font-family: inherit;
+    }
+
+    .cell-input:focus {
+      background: var(--osc-bg-input);
+      border-color: var(--osc-accent-primary);
+      outline: none;
+    }
+
+    .text-center {
+      text-align: center;
+    }
+
+    .col-actions {
+      width: 45px;
+      text-align: center;
+    }
   </style>
 </head>
-<body>
-  <!-- SIDEBAR: DEVICE CATALOG / LIBRARY -->
-  <aside class="library-sidebar">
-    <div class="library-header">
-      <div class="library-title">
-        <span>📼 Device Library</span>
-        <button class="btn" onclick="addNewDevice()" title="Add Custom Device">+ New</button>
-      </div>
-      <input type="text" class="search-input" id="search-box" placeholder="Search devices by mfg, model, category..." oninput="filterDevices(this.value)">
+<body class="theme-deep-horizon">
+  <header class="app-window-header">
+    <div class="window-title-group">
+      <span class="window-dot"></span>
+      <span class="window-title">Device Library & Chassis Editor</span>
+      <span class="window-pill" id="block-tag">STANDALONE BLOCK EDITOR</span>
     </div>
-    <div class="device-list" id="device-list"></div>
-    <div style="padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px;">
-      <button class="btn" style="flex: 1;" onclick="exportLibraryJson()">Export JSON</button>
-      <button class="btn" style="flex: 1;" onclick="resetDefaults()">Reset</button>
+    <div class="window-actions">
+      <button class="btn btn-secondary" id="btn-sync-discovered" title="Load live devices from Discovered Project">
+        <span class="btn-icon">⚡</span> Discovered
+      </button>
+      <button class="btn btn-secondary" id="btn-open" title="Open block JSON">
+        <span class="btn-icon">📂</span> Open
+      </button>
+      <button class="btn btn-primary" id="btn-save" title="Save & Return modified block to caller">
+        <span class="btn-icon">💾</span> Save & Return
+      </button>
+      <button class="btn btn-icon" id="btn-close" title="Close Editor">✕</button>
     </div>
-  </aside>
+  </header>
 
-  <!-- MAIN: EDITABLE DEVICE INSPECTOR -->
-  <main class="main-editor">
-    <div class="editor-topbar">
-      <div class="editor-title" id="active-title">
-        <span>📼</span> <span id="device-heading">Device Inspector</span>
+  <div class="device-app-container">
+    <aside class="device-sidebar">
+      <div class="sidebar-header">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:11px; font-weight:700; color:var(--osc-text-muted); text-transform:uppercase;">Device Catalog</span>
+          <button class="btn btn-primary btn-sm" id="btn-new-device">+ New</button>
+        </div>
+        <input type="text" id="search-input" class="input" placeholder="Search devices...">
       </div>
-      <div class="btn-group">
-        <button class="btn" onclick="cloneCurrentDevice()">Clone Device</button>
-        <button class="btn btn-danger" onclick="deleteCurrentDevice()">Delete Device</button>
-        <button class="btn btn-primary" onclick="saveActiveDevice()">Save Changes</button>
+      <div class="device-list" id="device-list"></div>
+      <div style="padding:8px; border-top:1px solid var(--osc-border-default); display:flex; gap:6px;">
+        <button class="btn btn-secondary btn-sm" id="btn-duplicate-device" style="flex:1;">Duplicate</button>
+        <button class="btn btn-secondary btn-sm" id="btn-delete-device" style="color:var(--osc-status-danger);">Delete</button>
       </div>
-    </div>
+    </aside>
 
-    <div class="editor-body">
-      <!-- VISUAL CHASSIS PREVIEW -->
-      <div class="card-section">
-        <div class="section-title">Visual Chassis &amp; Connector Layout</div>
-        <div class="chassis-preview">
-          <div class="rack-faceplate">
-            <div>
-              <div style="font-size: 14px; font-weight: 700; color: #fff;" id="preview-mfg-model">Q-SYS Core 110f DSP</div>
-              <div style="font-size: 11px; color: var(--text-dim);" id="preview-specs">1RU • Depth: 350mm • Power: 40W • 136 BTU/hr</div>
-            </div>
-            <div style="display: flex; gap: 12px;">
-              <span class="btn" style="background:#000; border-color:#374151; font-size:10px;">EAR L</span>
-              <span class="btn" style="background:#000; border-color:#374151; font-size:10px;">EAR R</span>
-            </div>
-          </div>
-          <div class="ports-grid" id="preview-ports"></div>
+    <main class="main-editor-stage">
+      <section class="properties-bar">
+        <div class="form-group">
+          <label for="input-manufacturer">Manufacturer</label>
+          <input type="text" id="input-manufacturer" class="input">
         </div>
-      </div>
-
-      <div class="grid-2">
-        <!-- GENERAL SPECIFICATIONS -->
-        <div class="card-section">
-          <div class="section-title">General Specifications</div>
-          <div class="form-group">
-            <label class="form-label">Manufacturer</label>
-            <input type="text" class="form-input" id="field-mfg">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Model Name</label>
-            <input type="text" class="form-input" id="field-model">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Part Number / SKU</label>
-            <input type="text" class="form-input" id="field-part">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Device Category</label>
-            <select class="form-select" id="field-category">
-              <option value="DSP">DSP (Digital Signal Processor)</option>
-              <option value="Switch">Managed Network Switch</option>
-              <option value="Wireless">Wireless Microphone System</option>
-              <option value="Video">Video Encoder / Decoder</option>
-              <option value="Amplifier">Power Amplifier</option>
-              <option value="Frame">Modular Card Frame Chassis</option>
-              <option value="Clock">Master Clock Generator</option>
-              <option value="Mixer">Console / Digital Mixer</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="input-model">Model Name</label>
+          <input type="text" id="input-model" class="input">
         </div>
-
-        <!-- PHYSICAL & ELECTRICAL METRICS -->
-        <div class="card-section">
-          <div class="section-title">Physical &amp; Thermal Metrics</div>
-          <div class="form-group">
-            <label class="form-label">Rack Unit Height (RU)</label>
-            <input type="number" class="form-input" id="field-ru" min="1" max="10">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Chassis Depth (mm)</label>
-            <input type="number" class="form-input" id="field-depth">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Base Power Consumption (Watts)</label>
-            <input type="number" class="form-input" id="field-power">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Thermal Dissipation (BTU / hr)</label>
-            <input type="number" class="form-input" id="field-btu">
-          </div>
+        <div class="form-group">
+          <label for="input-part-number">Part Number</label>
+          <input type="text" id="input-part-number" class="input">
         </div>
-      </div>
-
-      <!-- PORTS & CONNECTORS TABLE -->
-      <div class="card-section">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-          <div class="section-title" style="margin-bottom: 0; border-bottom: none;">Provisioned Ports &amp; Physical Connectors</div>
-          <button class="btn" onclick="addPortRow()">+ Add Port Group</button>
+        <div class="form-group">
+          <label for="select-category">Category</label>
+          <select id="select-category" class="input">
+            <option value="Audio">Audio / DSP</option>
+            <option value="Network">Network Switch / Router</option>
+            <option value="Video">Video / IPTV</option>
+            <option value="Control">Control / Automation</option>
+            <option value="Power">Power / PDU / UPS</option>
+            <option value="Compute">Server / Compute</option>
+            <option value="Wireless">Wireless / RF</option>
+          </select>
         </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Port Group Name</th>
-              <th>Connector Type</th>
-              <th>Signal Domain</th>
-              <th>Direction</th>
-              <th>Count</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="ports-tbody"></tbody>
-        </table>
-      </div>
-    </div>
-  </main>
-
-  <script type="module">
-    import { DEFAULT_DEVICE_LIBRARY, DeviceLibraryStore } from './js/deviceApp.js';
-
-    const store = new DeviceLibraryStore(
-      JSON.parse(localStorage.getItem('apk_device_library')) || DEFAULT_DEVICE_LIBRARY
-    );
-
-    function renderList(filter = '') {
-      const listEl = document.getElementById('device-list');
-      const q = filter.toLowerCase();
-      const filtered = store.getAll().filter(d => 
-        d.manufacturer.toLowerCase().includes(q) ||
-        d.model.toLowerCase().includes(q) ||
-        d.category.toLowerCase().includes(q)
-      );
-
-      listEl.innerHTML = filtered.map(d => `
-        <div class="device-item ${d.id === store.activeDeviceId ? 'active' : ''}" onclick="selectDevice('${d.id}')">
-          <div class="device-item-mfg">${d.manufacturer}</div>
-          <div class="device-item-model">${d.model}</div>
-          <div class="device-item-meta">
-            <span>${d.ru}RU</span>
-            <span>•</span>
-            <span>${d.category}</span>
-            <span>•</span>
-            <span>${d.basePowerW}W</span>
-          </div>
+        <div class="form-group">
+          <label for="input-ru">Rack Height (RU)</label>
+          <input type="number" id="input-ru" class="input" min="1" max="10">
         </div>
-      `).join('');
-    }
-
-    function renderEditor() {
-      const dev = store.getActive();
-      if (!dev) return;
-
-      document.getElementById('device-heading').textContent = `${dev.manufacturer} ${dev.model}`;
-      document.getElementById('preview-mfg-model').textContent = `${dev.manufacturer} ${dev.model}`;
-      document.getElementById('preview-specs').textContent = 
-        `${dev.ru}RU • Depth: ${dev.depthMm}mm • Base Power: ${dev.basePowerW}W • ${dev.btuHr} BTU/hr`;
-
-      document.getElementById('field-mfg').value = dev.manufacturer;
-      document.getElementById('field-model').value = dev.model;
-      document.getElementById('field-part').value = dev.partNumber || '';
-      document.getElementById('field-category').value = dev.category;
-      document.getElementById('field-ru').value = dev.ru;
-      document.getElementById('field-depth').value = dev.depthMm;
-      document.getElementById('field-power').value = dev.basePowerW;
-      document.getElementById('field-btu').value = dev.btuHr;
-
-      // Preview Ports
-      const previewPortsEl = document.getElementById('preview-ports');
-      previewPortsEl.innerHTML = (dev.ports || []).map(p => `
-        <div class="port-chip">
-          <span>${p.name} (${p.type})</span>
-          <span class="port-chip-count">${p.count || 1}</span>
+        <div class="form-group">
+          <label for="input-depth">Chassis Depth (mm)</label>
+          <input type="number" id="input-depth" class="input">
         </div>
-      `).join('');
+        <div class="form-group">
+          <label for="input-power">Base Power (Watts)</label>
+          <input type="number" id="input-power" class="input">
+        </div>
+        <div class="form-group">
+          <label for="input-btu">Thermal Load (BTU/hr)</label>
+          <input type="number" id="input-btu" class="input">
+        </div>
+      </section>
 
-      // Ports Table
-      const portsTbody = document.getElementById('ports-tbody');
-      portsTbody.innerHTML = (dev.ports || []).map((p, idx) => `
-        <tr>
-          <td><input type="text" class="form-input" style="padding:4px 8px; font-size:12px;" value="${p.name}" onchange="updatePort(${idx}, 'name', this.value)"></td>
-          <td>
-            <select class="form-select" style="padding:4px 8px; font-size:12px;" onchange="updatePort(${idx}, 'type', this.value)">
-              ${['RJ45', 'XLR-F', 'XLR-M', 'BNC', 'Phoenix-Euroblock', 'HDMI', 'USB-B', 'USB-C', 'SFP', 'IEC-C14'].map(c => `
-                <option value="${c}" ${c === p.type ? 'selected' : ''}>${c}</option>
-              `).join('')}
-            </select>
-          </td>
-          <td>
-            <select class="form-select" style="padding:4px 8px; font-size:12px;" onchange="updatePort(${idx}, 'signal', this.value)">
-              ${['Analog Audio', 'Network', 'Video/Audio', 'USB', 'Serial Control', 'RF UHF', 'Fiber/Network', 'AC Power', 'DC Power'].map(s => `
-                <option value="${s}" ${s === p.signal ? 'selected' : ''}>${s}</option>
-              `).join('')}
-            </select>
-          </td>
-          <td>
-            <select class="form-select" style="padding:4px 8px; font-size:12px;" onchange="updatePort(${idx}, 'dir', this.value)">
-              <option value="In" ${p.dir === 'In' ? 'selected' : ''}>In</option>
-              <option value="Out" ${p.dir === 'Out' ? 'selected' : ''}>Out</option>
-              <option value="Bidi" ${p.dir === 'Bidi' ? 'selected' : ''}>Bidi</option>
-            </select>
-          </td>
-          <td><input type="number" class="form-input" style="width:70px; padding:4px 8px; font-size:12px;" value="${p.count || 1}" min="1" max="96" onchange="updatePort(${idx}, 'count', parseInt(this.value, 10))"></td>
-          <td><button class="btn btn-danger" style="padding:2px 8px; font-size:11px;" onclick="removePort(${idx})">✕</button></td>
-        </tr>
-      `).join('');
-    }
+      <div class="chassis-preview-panel" id="chassis-preview-stage"></div>
 
-    window.selectDevice = (id) => {
-      store.setActive(id);
-      renderList();
-      renderEditor();
-    };
+      <section class="ports-grid-panel">
+        <div class="ports-grid-header">
+          <span style="font-size:11px; font-weight:600; text-transform:uppercase; color:var(--osc-text-muted);">
+            Physical Ports & Interfaces (Live Editable)
+          </span>
+          <button class="btn btn-primary btn-sm" id="btn-add-port">+ Add Port Interface</button>
+        </div>
+        <div class="ports-table-container">
+          <table class="ports-table">
+            <thead>
+              <tr>
+                <th>Port Group / Name</th>
+                <th>Connector Type</th>
+                <th>Signal Type</th>
+                <th>Direction</th>
+                <th style="width:50px;" class="text-center">Count</th>
+                <th class="col-actions">Act</th>
+              </tr>
+            </thead>
+            <tbody id="device-port-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
-    window.filterDevices = (q) => {
-      renderList(q);
-    };
-
-    window.saveActiveDevice = () => {
-      const active = store.getActive();
-      if (!active) return;
-      store.updateDevice(active.id, {
-        manufacturer: document.getElementById('field-mfg').value,
-        model: document.getElementById('field-model').value,
-        partNumber: document.getElementById('field-part').value,
-        category: document.getElementById('field-category').value,
-        ru: parseInt(document.getElementById('field-ru').value, 10) || 1,
-        depthMm: parseInt(document.getElementById('field-depth').value, 10) || 300,
-        basePowerW: parseInt(document.getElementById('field-power').value, 10) || 50,
-        btuHr: parseInt(document.getElementById('field-btu').value, 10) || 170
-      });
-      localStorage.setItem('apk_device_library', JSON.stringify(store.getAll()));
-      renderList();
-      renderEditor();
-    };
-
-    window.cloneCurrentDevice = () => {
-      const active = store.getActive();
-      if (!active) return;
-      store.cloneDevice(active.id);
-      localStorage.setItem('apk_device_library', JSON.stringify(store.getAll()));
-      renderList();
-      renderEditor();
-    };
-
-    window.deleteCurrentDevice = () => {
-      const active = store.getActive();
-      if (!active) return;
-      if (confirm(`Delete ${active.manufacturer} ${active.model} from library?`)) {
-        store.deleteDevice(active.id);
-        localStorage.setItem('apk_device_library', JSON.stringify(store.getAll()));
-        renderList();
-        renderEditor();
-      }
-    };
-
-    window.addNewDevice = () => {
-      store.addDevice({
-        manufacturer: 'New Manufacturer',
-        model: 'Custom Model',
-        partNumber: 'SKU-001',
-        category: 'DSP',
-        ru: 1,
-        depthMm: 300,
-        basePowerW: 35,
-        btuHr: 120,
-        ports: [
-          { id: 'p1', name: 'Network Port', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 1 }
-        ]
-      });
-      localStorage.setItem('apk_device_library', JSON.stringify(store.getAll()));
-      renderList();
-      renderEditor();
-    };
-
-    window.addPortRow = () => {
-      const active = store.getActive();
-      if (!active) return;
-      active.ports.push({
-        id: `p-${Date.now()}`,
-        name: 'New Port Group',
-        type: 'RJ45',
-        signal: 'Network',
-        dir: 'Bidi',
-        count: 1
-      });
-      renderEditor();
-    };
-
-    window.updatePort = (idx, field, value) => {
-      const active = store.getActive();
-      if (!active || !active.ports[idx]) return;
-      active.ports[idx][field] = value;
-      renderEditor();
-    };
-
-    window.removePort = (idx) => {
-      const active = store.getActive();
-      if (!active) return;
-      active.ports.splice(idx, 1);
-      renderEditor();
-    };
-
-    window.exportLibraryJson = () => {
-      const blob = new Blob([JSON.stringify(store.getAll(), null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'device_library.json';
-      a.click();
-    };
-
-    window.resetDefaults = () => {
-      if (confirm('Reset to default factory device library?')) {
-        localStorage.removeItem('apk_device_library');
-        store.devices = JSON.parse(JSON.stringify(DEFAULT_DEVICE_LIBRARY));
-        store.activeDeviceId = store.devices[0].id;
-        renderList();
-        renderEditor();
-      }
-    };
-
-    renderList();
-    renderEditor();
-  </script>
+  <script type="module" src="./js/deviceApp.js"></script>
 </body>
 </html>
