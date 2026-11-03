@@ -1,22 +1,68 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DeviceChassisModel } from '../js/deviceApp.js';
+import {
+  EXPANSION_CARDS,
+  DEFAULT_DEVICE_LIBRARY,
+  DeviceLibraryStore
+} from '../js/deviceApp.js';
 
-test('DeviceChassisModel manages expansion slots and computes power/port rollups', () => {
-  const dev = new DeviceChassisModel('TEST-CHASSIS', 4);
-  assert.equal(dev.slots.length, 4);
-  assert.equal(dev.getTotalPower(), 45); // base power
-  assert.equal(dev.getTotalPorts(), 0);
+test('Device library defaults loaded', () => {
+  const store = new DeviceLibraryStore();
+  const all = store.getAll();
+  assert.ok(all.length >= 4);
+  assert.equal(all[0].manufacturer, 'Q-SYS');
+  assert.equal(all[1].manufacturer, 'Cisco');
+});
 
-  // Install 8ch mic card in slot 1
-  const ok = dev.installCard(1, 'card-mic8');
-  assert.equal(ok, true);
-  assert.equal(dev.slots[0].card.ports, 8);
-  assert.equal(dev.getTotalPorts(), 8);
-  assert.equal(dev.getTotalPower(), 45 + 24);
+test('Device library getActive and setActive', () => {
+  const store = new DeviceLibraryStore();
+  const active = store.getActive();
+  assert.equal(active.id, 'dev-qsys-core110f');
 
-  // Eject card
-  dev.removeCard(1);
-  assert.equal(dev.slots[0].card, null);
-  assert.equal(dev.getTotalPorts(), 0);
+  const switched = store.setActive('dev-cisco-cbs350-24p');
+  assert.equal(switched, true);
+  assert.equal(store.getActive().model, 'CBS350-24P-4G Managed Switch');
+});
+
+test('Device library add and clone device', () => {
+  const store = new DeviceLibraryStore();
+  const initialCount = store.getAll().length;
+
+  const cloned = store.cloneDevice('dev-qsys-core110f');
+  assert.ok(cloned);
+  assert.equal(cloned.manufacturer, 'Q-SYS');
+  assert.match(cloned.model, /Copy/);
+  assert.equal(store.getAll().length, initialCount + 1);
+
+  const custom = store.addDevice({
+    manufacturer: 'Yamaha',
+    model: 'TF-RACK',
+    category: 'Mixer',
+    ru: 3,
+    basePowerW: 85,
+    btuHr: 290
+  });
+  assert.ok(custom);
+  assert.equal(store.getActive().manufacturer, 'Yamaha');
+});
+
+test('Device library update and delete', () => {
+  const store = new DeviceLibraryStore();
+  store.updateDevice('dev-cisco-cbs350-24p', { basePowerW: 55 });
+  const updated = store.getById('dev-cisco-cbs350-24p');
+  assert.equal(updated.basePowerW, 55);
+
+  const deleted = store.deleteDevice('dev-cisco-cbs350-24p');
+  assert.equal(deleted, true);
+  assert.equal(store.getById('dev-cisco-cbs350-24p'), null);
+});
+
+test('Device power and port calculations', () => {
+  const store = new DeviceLibraryStore();
+  const frame = store.getById('dev-modular-card-frame-4u');
+  const power = store.calculateTotalPower(frame);
+  const ports = store.calculateTotalPorts(frame);
+
+  assert.ok(power > frame.basePowerW);
+  assert.ok(ports > 0);
 });
