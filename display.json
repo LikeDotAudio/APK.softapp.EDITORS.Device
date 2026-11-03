@@ -1,0 +1,8 @@
+{
+  "name": "Device & Equipment Chassis Editor",
+  "icon": "📟",
+  "group": "Design",
+  "subGroup": "Hardware & Devices",
+  "description": "Device & Equipment Chassis Editor: configure modular card frames, audio/video interface cards, slot capacities, port declarations, power/heat dissipation profiles, and hardware firmware revisions.",
+  "app": "APK:Softapps/EDITORS/EDITORS.Device/index.html"
+}

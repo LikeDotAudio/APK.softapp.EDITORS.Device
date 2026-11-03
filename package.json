@@ -1,0 +1,19 @@
+{
+  "name": "device-chassis-editor",
+  "version": "1.0.0",
+  "description": "Device & Equipment Chassis Editor Softapp on APK.audio",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs"
+  },
+  "keywords": [
+    "device",
+    "chassis",
+    "slots",
+    "ports",
+    "cards",
+    "hardware"
+  ],
+  "author": "Anthony Kuzub",
+  "license": "MIT"
+}
