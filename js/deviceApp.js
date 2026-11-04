@@ -464,53 +464,76 @@ export class DeviceLibraryApp {
     if (!this.chassisStage || !this.selectedDevice) return;
     const dev = this.selectedDevice;
     const ru = dev.ru || 1;
-    const heightMm = ru * 44.45;
-    const widthMm = 440; // 19" chassis width minus rack ears
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-    const ports = dev.ports || [];
+    /* EIA-310 front, in mm: a 482.6 mm (19") panel, a 440 mm body between two
+       ears, 44.45 mm per U, two fixing slots per U per ear at ±15.875 mm from
+       the U's centre. The slots are WIDE (9.5 x 7 mm, horizontal) — the slack
+       is sideways, to meet the rail — never tall and skinny. */
+    const PANEL_W = 482.6, BODY_W = 440, U = 44.45, HOLE_OFFSET = 15.875;
+    const SLOT_W = 9.5, SLOT_H = 7, SLOT_FROM_EDGE = 7.95;
+    const EAR_W = (PANEL_W - BODY_W) / 2;
+    const M = 6;                                  // margin around the drawing
+    const H = ru * U;
     const parts = [];
 
-    // Chassis Faceplate
-    parts.push(`<rect x="15" y="10" width="${widthMm}" height="${heightMm}" rx="3" fill="#18181b" stroke="#3f3f46" stroke-width="1.2"/>`);
-
-    // Rack Ears
-    parts.push(`<rect x="2" y="10" width="13" height="${heightMm}" fill="#0f0f11" stroke="#3f3f46" stroke-width="0.8"/>`);
-    parts.push(`<rect x="${widthMm + 15}" y="10" width="13" height="${heightMm}" fill="#0f0f11" stroke="#3f3f46" stroke-width="0.8"/>`);
-
-    // Ear mounting slots
-    parts.push(`<rect x="5" y="${10 + heightMm / 2 - 4}" width="6" height="8" rx="2" fill="#121212" stroke="#3f3f46" stroke-width="0.5"/>`);
-    parts.push(`<rect x="${widthMm + 19}" y="${10 + heightMm / 2 - 4}" width="6" height="8" rx="2" fill="#121212" stroke="#3f3f46" stroke-width="0.5"/>`);
-
-    // Device branding label
-    parts.push(`<text x="24" y="${10 + Math.min(heightMm / 2 + 4, 16)}" fill="#F4902C" font-size="10" font-weight="bold" font-family="sans-serif">${dev.manufacturer.toUpperCase()}</text>`);
-    parts.push(`<text x="24" y="${10 + Math.min(heightMm / 2 + 16, 26)}" fill="#f4f4f5" font-size="8" font-family="sans-serif">${dev.model}</text>`);
-
-    // Render physical connectors
-    let currentX = 160;
-    const connectorY = 10 + heightMm / 2;
-
-    ports.forEach(p => {
-      const pCount = p.count || 1;
-      const portWidth = p.type === 'Phoenix-Euroblock' ? 18 : 12;
-
-      for (let c = 0; c < Math.min(pCount, 8); c++) {
-        if (currentX + portWidth > widthMm) break;
-
-        // Draw connector icon
-        parts.push(`<g>`);
-        parts.push(`<rect x="${currentX}" y="${connectorY - 7}" width="${portWidth - 2}" height="14" rx="2" fill="#0f0f11" stroke="#4A9EFF" stroke-width="0.6"/>`);
-        parts.push(`<text x="${currentX + portWidth / 2 - 1}" y="${connectorY + 3}" fill="#888888" font-size="6" text-anchor="middle" font-family="monospace">${p.type.substring(0, 3)}</text>`);
-        parts.push(`</g>`);
-        currentX += portWidth + 2;
+    // Ears and their slots
+    for (const x0 of [M, M + PANEL_W - EAR_W]) {
+      parts.push(`<rect x="${x0}" y="${M}" width="${EAR_W}" height="${H}" fill="#0f0f11" stroke="#3f3f46" stroke-width="0.8"/>`);
+      const cx = x0 === M ? M + SLOT_FROM_EDGE : M + PANEL_W - SLOT_FROM_EDGE;
+      for (let u = 0; u < ru; u++) {
+        const uc = M + u * U + U / 2;
+        for (const cy of [uc - HOLE_OFFSET, uc + HOLE_OFFSET]) {
+          parts.push(`<rect x="${cx - SLOT_W / 2}" y="${cy - SLOT_H / 2}" width="${SLOT_W}" height="${SLOT_H}" rx="${SLOT_H / 2}" fill="#09090b" stroke="#52525b" stroke-width="0.6"/>`);
+        }
       }
-      currentX += 6;
+    }
+
+    // Body
+    const bx = M + EAR_W;
+    parts.push(`<rect x="${bx}" y="${M}" width="${BODY_W}" height="${H}" rx="2" fill="#18181b" stroke="#3f3f46" stroke-width="1"/>`);
+    parts.push(`<text x="${bx + 8}" y="${M + Math.min(H / 2 - 2, 16)}" fill="#F4902C" font-size="9" font-weight="bold" font-family="sans-serif">${esc((dev.manufacturer || '').toUpperCase())}</text>`);
+    parts.push(`<text x="${bx + 8}" y="${M + Math.min(H / 2 + 9, 27)}" fill="#f4f4f5" font-size="6.5" font-family="sans-serif">${esc(dev.model)}</text>`);
+
+    /* Ports: EVERY port is drawn. Groups sit side by side after the name
+       block; when they do not fit, all of them shrink together — nothing is
+       dropped. Relative cell widths are the editor's own until per-connector
+       datasheet footprints land (see EDITORS.CAD.Like.audio connectors). */
+    const ports = dev.ports || [];
+    const cellW = (t) => (/euroblock|phoenix/i.test(t) ? 18 : /iec|c1[3-9]|powercon/i.test(t) ? 16 : /rj45|ethercon|sfp/i.test(t) ? 13 : 11);
+    const shortType = (t) => String(t || '?').replace(/^Phoenix-Euroblock$/i, 'Euro').replace(/-/g, ' ');
+    const GAP = 1.5, GROUP_GAP = 7;
+    const startX = bx + 120, endX = bx + BODY_W - 8;
+    const labelOf = (p) => ((p.count || 1) > 1 ? `${shortType(p.type)} ×${p.count}` : shortType(p.type));
+    const FONT = 4.2, CHAR_W = FONT * 0.62;     // monospace advance
+    const labelW = (p) => labelOf(p).length * CHAR_W;
+    const cellsW = (p) => (p.count || 1) * (cellW(p.type) + GAP) - GAP;
+    // Labels keep their size and only the cells shrink, so find the scale that fits by search.
+    const widthAt = (k) => ports.reduce((w, p) => w + Math.max(cellsW(p) * k, labelW(p)) + GROUP_GAP * k, -GROUP_GAP * k);
+    let k = 1;
+    while (k > 0.2 && widthAt(k) > endX - startX) k -= 0.01;
+    const cellH = Math.min(14, H - 18);
+    const cy = M + H / 2 - 3;
+    let x = startX;
+    ports.forEach((p) => {
+      const n = p.count || 1;
+      const w = cellW(p.type) * k;
+      const slotW = Math.max(cellsW(p) * k, labelW(p));   // the label never shrinks below legible
+      const g0 = x;
+      let cx0 = g0 + (slotW - cellsW(p) * k) / 2;
+      for (let c = 0; c < n; c++) {
+        parts.push(`<rect x="${cx0}" y="${cy - cellH / 2}" width="${w}" height="${cellH}" rx="1.2" fill="#0f0f11" stroke="#4A9EFF" stroke-width="0.5"><title>${esc(p.name)} — ${esc(p.type)} ${c + 1}/${n}</title></rect>`);
+        if (/euroblock|phoenix/i.test(p.type)) {
+          for (let pin = 0; pin < 3; pin++) parts.push(`<circle cx="${cx0 + w * (pin + 1) / 4}" cy="${cy}" r="${Math.min(1.6, w / 9)}" fill="#a1a1aa"/>`);
+        }
+        cx0 += w + GAP * k;
+      }
+      parts.push(`<text x="${g0 + slotW / 2}" y="${cy + cellH / 2 + 6.5}" fill="#a1a1aa" font-size="${FONT}" text-anchor="middle" font-family="monospace"><title>${esc(p.name)}</title>${esc(labelOf(p))}</text>`);
+      x = g0 + slotW + GROUP_GAP * k;
     });
 
-    const svgWidth = widthMm + 30;
-    const svgHeight = heightMm + 20;
-
     this.chassisStage.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${svgWidth} ${svgHeight}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PANEL_W + 2 * M} ${H + 2 * M}" width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
         ${parts.join('')}
       </svg>
     `;
