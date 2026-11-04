@@ -471,19 +471,19 @@ export class DeviceLibraryApp {
     const parts = [];
 
     // Chassis Faceplate
-    parts.push(`<rect x="15" y="10" width="${widthMm}" height="${heightMm}" rx="3" fill="#121A2F" stroke="#2D3D60" stroke-width="1.2"/>`);
+    parts.push(`<rect x="15" y="10" width="${widthMm}" height="${heightMm}" rx="3" fill="#18181b" stroke="#3f3f46" stroke-width="1.2"/>`);
 
     // Rack Ears
-    parts.push(`<rect x="2" y="10" width="13" height="${heightMm}" fill="#0E1424" stroke="#2D3D60" stroke-width="0.8"/>`);
-    parts.push(`<rect x="${widthMm + 15}" y="10" width="13" height="${heightMm}" fill="#0E1424" stroke="#2D3D60" stroke-width="0.8"/>`);
+    parts.push(`<rect x="2" y="10" width="13" height="${heightMm}" fill="#0f0f11" stroke="#3f3f46" stroke-width="0.8"/>`);
+    parts.push(`<rect x="${widthMm + 15}" y="10" width="13" height="${heightMm}" fill="#0f0f11" stroke="#3f3f46" stroke-width="0.8"/>`);
 
     // Ear mounting slots
-    parts.push(`<rect x="5" y="${10 + heightMm / 2 - 4}" width="6" height="8" rx="2" fill="#080C16" stroke="#2D3D60" stroke-width="0.5"/>`);
-    parts.push(`<rect x="${widthMm + 19}" y="${10 + heightMm / 2 - 4}" width="6" height="8" rx="2" fill="#080C16" stroke="#2D3D60" stroke-width="0.5"/>`);
+    parts.push(`<rect x="5" y="${10 + heightMm / 2 - 4}" width="6" height="8" rx="2" fill="#121212" stroke="#3f3f46" stroke-width="0.5"/>`);
+    parts.push(`<rect x="${widthMm + 19}" y="${10 + heightMm / 2 - 4}" width="6" height="8" rx="2" fill="#121212" stroke="#3f3f46" stroke-width="0.5"/>`);
 
     // Device branding label
     parts.push(`<text x="24" y="${10 + Math.min(heightMm / 2 + 4, 16)}" fill="#F4902C" font-size="10" font-weight="bold" font-family="sans-serif">${dev.manufacturer.toUpperCase()}</text>`);
-    parts.push(`<text x="24" y="${10 + Math.min(heightMm / 2 + 16, 26)}" fill="#F0F4F8" font-size="8" font-family="sans-serif">${dev.model}</text>`);
+    parts.push(`<text x="24" y="${10 + Math.min(heightMm / 2 + 16, 26)}" fill="#f4f4f5" font-size="8" font-family="sans-serif">${dev.model}</text>`);
 
     // Render physical connectors
     let currentX = 160;
@@ -498,8 +498,8 @@ export class DeviceLibraryApp {
 
         // Draw connector icon
         parts.push(`<g>`);
-        parts.push(`<rect x="${currentX}" y="${connectorY - 7}" width="${portWidth - 2}" height="14" rx="2" fill="#0E1424" stroke="#4A9EFF" stroke-width="0.6"/>`);
-        parts.push(`<text x="${currentX + portWidth / 2 - 1}" y="${connectorY + 3}" fill="#8B9BB4" font-size="6" text-anchor="middle" font-family="monospace">${p.type.substring(0, 3)}</text>`);
+        parts.push(`<rect x="${currentX}" y="${connectorY - 7}" width="${portWidth - 2}" height="14" rx="2" fill="#0f0f11" stroke="#4A9EFF" stroke-width="0.6"/>`);
+        parts.push(`<text x="${currentX + portWidth / 2 - 1}" y="${connectorY + 3}" fill="#888888" font-size="6" text-anchor="middle" font-family="monospace">${p.type.substring(0, 3)}</text>`);
         parts.push(`</g>`);
         currentX += portWidth + 2;
       }
