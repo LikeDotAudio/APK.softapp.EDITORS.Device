@@ -95,6 +95,27 @@ export const DEFAULT_DEVICE_LIBRARY = [
       { id: 'p5', name: 'Mains AC Power (20A)', type: 'IEC-C20', signal: 'AC Power', dir: 'In', count: 1 },
     ],
   },
+  {
+    id: 'dev-modular-card-frame-4u',
+    manufacturer: 'Modular Frame Systems',
+    model: 'Modular Card Frame 4U',
+    partNumber: 'MOD-FRAME-4U',
+    category: 'Audio',
+    ru: 4,
+    depthMm: 400,
+    basePowerW: 50,
+    btuHr: 170,
+    slotCount: 4,
+    slots: [
+      { slotNumber: 1, cardId: 'card-mic8' },
+      { slotNumber: 2, cardId: 'card-out8' },
+      { slotNumber: 3, cardId: 'card-dante32' },
+      { slotNumber: 4, cardId: null },
+    ],
+    ports: [
+      { id: 'p1', name: 'Mains AC Power', type: 'IEC-C14', signal: 'AC Power', dir: 'In', count: 1 },
+    ],
+  },
 ];
 
 export class DeviceLibraryApp {
@@ -514,6 +535,120 @@ export class DeviceLibraryApp {
       reader.readAsText(file);
     };
     input.click();
+  }
+}
+
+let _deviceCounter = 1;
+
+export class DeviceLibraryStore {
+  constructor(initial = DEFAULT_DEVICE_LIBRARY) {
+    this.devices = JSON.parse(JSON.stringify(initial));
+    this.activeId = this.devices.length > 0 ? this.devices[0].id : null;
+  }
+
+  getAll() {
+    return this.devices;
+  }
+
+  getById(id) {
+    return this.devices.find(d => d.id === id) || null;
+  }
+
+  getActive() {
+    return this.devices.find(d => d.id === this.activeId) || this.devices[0] || null;
+  }
+
+  setActive(id) {
+    const found = this.devices.find(d => d.id === id);
+    if (found) {
+      this.activeId = id;
+      return true;
+    }
+    return false;
+  }
+
+  cloneDevice(id) {
+    const src = this.devices.find(d => d.id === id);
+    if (!src) return null;
+    const cloned = JSON.parse(JSON.stringify(src));
+    cloned.id = `dev-clone-${++_deviceCounter}-${Date.now().toString(36)}`;
+    cloned.model = `${src.model} (Copy)`;
+    this.devices.push(cloned);
+    return cloned;
+  }
+
+  addDevice(data = {}) {
+    const dev = {
+      id: data.id || `dev-add-${++_deviceCounter}-${Date.now().toString(36)}`,
+      manufacturer: data.manufacturer || 'Generic',
+      model: data.model || 'New Device',
+      partNumber: data.partNumber || '',
+      category: data.category || 'Audio',
+      ru: data.ru || 1,
+      depthMm: data.depthMm || 300,
+      basePowerW: data.basePowerW || 20,
+      btuHr: data.btuHr || 68,
+      slotCount: data.slotCount || 0,
+      slots: data.slots || [],
+      ports: data.ports || []
+    };
+    this.devices.push(dev);
+    this.activeId = dev.id;
+    return dev;
+  }
+
+  updateDevice(id, data = {}) {
+    const dev = this.devices.find(d => d.id === id);
+    if (dev) {
+      Object.assign(dev, data);
+      return dev;
+    }
+    return null;
+  }
+
+  deleteDevice(id) {
+    const idx = this.devices.findIndex(d => d.id === id);
+    if (idx !== -1) {
+      this.devices.splice(idx, 1);
+      if (this.activeId === id) {
+        this.activeId = this.devices.length > 0 ? this.devices[0].id : null;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  calculateTotalPower(dev) {
+    if (!dev) return 0;
+    let power = dev.basePowerW || 0;
+    if (Array.isArray(dev.slots)) {
+      dev.slots.forEach(slot => {
+        if (slot && slot.cardId) {
+          const card = EXPANSION_CARDS.find(c => c.id === slot.cardId);
+          if (card && card.powerW) power += card.powerW;
+        }
+      });
+    }
+    return power;
+  }
+
+  calculateTotalPorts(dev) {
+    if (!dev) return 0;
+    let ports = 0;
+    if (Array.isArray(dev.ports)) {
+      dev.ports.forEach(p => {
+        ports += (p.count || 1);
+      });
+    }
+    if (Array.isArray(dev.slots)) {
+      dev.slots.forEach(slot => {
+        if (slot && slot.cardId) {
+          const card = EXPANSION_CARDS.find(c => c.id === slot.cardId);
+          if (card && card.ports) ports += card.ports;
+        }
+      });
+    }
+    return ports;
   }
 }
 
