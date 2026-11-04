@@ -169,6 +169,10 @@
       <button class="btn btn-secondary" id="btn-open" title="Open block JSON">
         <span class="btn-icon">📂</span> Open
       </button>
+      <span id="library-status" style="font-size:11px; color:var(--osc-text-muted); margin-right:8px;"></span>
+      <button class="btn btn-secondary" id="btn-save-library" title="Save this device to the shared BIM library (DATABASE.server.BIM)">
+        <span class="btn-icon">📚</span> Save to Library
+      </button>
       <button class="btn btn-primary" id="btn-save" title="Save & Return modified block to caller">
         <span class="btn-icon">💾</span> Save & Return
       </button>
@@ -183,7 +187,7 @@
           <span style="font-size:11px; font-weight:700; color:var(--osc-text-muted); text-transform:uppercase;">Device Catalog</span>
           <button class="btn btn-primary btn-sm" id="btn-new-device">+ New</button>
         </div>
-        <input type="text" id="search-input" class="input" placeholder="Search devices...">
+        <input type="text" id="search-input" class="input" placeholder="Search the BIM library (maker, model, connector)…">
       </div>
       <div class="device-list" id="device-list"></div>
       <div style="padding:8px; border-top:1px solid var(--osc-border-default); display:flex; gap:6px;">

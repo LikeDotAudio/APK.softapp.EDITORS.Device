@@ -4,6 +4,10 @@
 
 import { BlockBridge } from './blockBridge.js';
 
+import {
+  BIM_CATEGORIES, partToDevice, deviceToPart, searchParts, getPart, savePart, deletePart
+} from './bimLibrary.js';
+
 export const EXPANSION_CARDS = [
   { id: 'card-mic8', name: '8-Ch Mic/Line Analog Input Card', ports: 8, powerW: 24, type: 'Input' },
   { id: 'card-out8', name: '8-Ch Line Analog Output Card', ports: 8, powerW: 18, type: 'Output' },
@@ -12,116 +16,12 @@ export const EXPANSION_CARDS = [
   { id: 'card-gpio', name: '8x8 Logic GPIO / Relay Card', ports: 16, powerW: 5, type: 'Control' },
 ];
 
-export const DEFAULT_DEVICE_LIBRARY = [
-  {
-    id: 'dev-qsys-core110f',
-    manufacturer: 'Q-SYS',
-    model: 'Core 110f DSP',
-    partNumber: 'CORE-110F',
-    category: 'Audio',
-    ru: 1,
-    depthMm: 350,
-    basePowerW: 40,
-    btuHr: 136,
-    slotCount: 0,
-    slots: [],
-    ports: [
-      { id: 'p1', name: 'Mic/Line In 1-8', type: 'Phoenix-Euroblock', signal: 'Analog Audio', dir: 'In', count: 8 },
-      { id: 'p2', name: 'Line Out 1-8', type: 'Phoenix-Euroblock', signal: 'Analog Audio', dir: 'Out', count: 8 },
-      { id: 'p3', name: 'Flex In/Out 1-8', type: 'Phoenix-Euroblock', signal: 'Analog Audio', dir: 'Bidi', count: 8 },
-      { id: 'p4', name: 'LAN A (Q-LAN / Dante)', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 1 },
-      { id: 'p5', name: 'LAN B (Aux / Redundant)', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 1 },
-      { id: 'p6', name: 'USB-B Audio/Video', type: 'USB-B', signal: 'USB', dir: 'Bidi', count: 1 },
-      { id: 'p7', name: 'Mains AC Power', type: 'IEC-C14', signal: 'AC Power', dir: 'In', count: 1 },
-    ],
-  },
-  {
-    id: 'dev-cisco-cbs350-24p',
-    manufacturer: 'Cisco',
-    model: 'CBS350-24P-4G Managed Switch',
-    partNumber: 'CBS350-24P-4G-NA',
-    category: 'Network',
-    ru: 1,
-    depthMm: 257,
-    basePowerW: 45,
-    btuHr: 153,
-    slotCount: 0,
-    slots: [],
-    ports: [
-      { id: 'p1', name: 'PoE+ Gigabit Ports 1-24', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 24 },
-      { id: 'p2', name: 'SFP Uplink Ports 25-28', type: 'SFP', signal: 'Fiber/Network', dir: 'Bidi', count: 4 },
-      { id: 'p3', name: 'Console Port', type: 'RJ45', signal: 'Serial Control', dir: 'In', count: 1 },
-      { id: 'p4', name: 'Mains AC Power', type: 'IEC-C14', signal: 'AC Power', dir: 'In', count: 1 },
-    ],
-  },
-  {
-    id: 'dev-shure-ulxd4q',
-    manufacturer: 'Shure',
-    model: 'ULXD4Q Quad Digital Wireless Receiver',
-    partNumber: 'ULXD4Q=-G50',
-    category: 'Audio',
-    ru: 1,
-    depthMm: 274,
-    basePowerW: 32,
-    btuHr: 109,
-    slotCount: 0,
-    slots: [],
-    ports: [
-      { id: 'p1', name: 'XLR Analog Output 1-4', type: 'XLR-M', signal: 'Analog Audio', dir: 'Out', count: 4 },
-      { id: 'p2', name: 'Dante Primary / Secondary', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 2 },
-      { id: 'p3', name: 'RF Antenna A/B Inputs', type: 'BNC', signal: 'RF Antenna', dir: 'In', count: 2 },
-      { id: 'p4', name: 'RF Antenna Cascade A/B', type: 'BNC', signal: 'RF Antenna', dir: 'Out', count: 2 },
-      { id: 'p5', name: 'Ethernet Control', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 1 },
-      { id: 'p6', name: 'Mains AC Power', type: 'IEC-C14', signal: 'AC Power', dir: 'In', count: 1 },
-    ],
-  },
-  {
-    id: 'dev-crown-dci4-1250n',
-    manufacturer: 'Crown',
-    model: 'DCi 4|1250N DriveCore Network Amplifier',
-    partNumber: 'DCI4-1250N',
-    category: 'Audio',
-    ru: 2,
-    depthMm: 359,
-    basePowerW: 850,
-    btuHr: 2900,
-    slotCount: 0,
-    slots: [],
-    ports: [
-      { id: 'p1', name: 'Analog In 1-4', type: 'Phoenix-Euroblock', signal: 'Analog Audio', dir: 'In', count: 4 },
-      { id: 'p2', name: 'Speaker Outputs 1-4 (Hi-Z/Low-Z)', type: 'Terminal-Strip', signal: 'Amplified Audio', dir: 'Out', count: 4 },
-      { id: 'p3', name: 'BLU Link Audio In/Out', type: 'RJ45', signal: 'Digital Audio', dir: 'Bidi', count: 2 },
-      { id: 'p4', name: 'HiQnet Control', type: 'RJ45', signal: 'Network', dir: 'Bidi', count: 1 },
-      { id: 'p5', name: 'Mains AC Power (20A)', type: 'IEC-C20', signal: 'AC Power', dir: 'In', count: 1 },
-    ],
-  },
-  {
-    id: 'dev-modular-card-frame-4u',
-    manufacturer: 'Modular Frame Systems',
-    model: 'Modular Card Frame 4U',
-    partNumber: 'MOD-FRAME-4U',
-    category: 'Audio',
-    ru: 4,
-    depthMm: 400,
-    basePowerW: 50,
-    btuHr: 170,
-    slotCount: 4,
-    slots: [
-      { slotNumber: 1, cardId: 'card-mic8' },
-      { slotNumber: 2, cardId: 'card-out8' },
-      { slotNumber: 3, cardId: 'card-dante32' },
-      { slotNumber: 4, cardId: null },
-    ],
-    ports: [
-      { id: 'p1', name: 'Mains AC Power', type: 'IEC-C14', signal: 'AC Power', dir: 'In', count: 1 },
-    ],
-  },
-];
-
 export class DeviceLibraryApp {
   constructor() {
-    this.library = [...DEFAULT_DEVICE_LIBRARY];
-    this.selectedDevice = this.library[0];
+    // Every device comes from the BIM library (DATABASE.server.BIM) — none ship in this source.
+    this.library = [];
+    this.selectedDevice = null;
+    this.searchTimer = null;
 
     this.bridge = new BlockBridge({
       name: 'Device Editor',
@@ -163,16 +63,83 @@ export class DeviceLibraryApp {
 
     // Visual Chassis Preview
     this.chassisStage = document.getElementById('chassis-preview-stage');
+
+    this.btnSaveLibrary = document.getElementById('btn-save-library');
+    this.statusEl = document.getElementById('library-status');
+    if (this.selectCategory) {
+      this.selectCategory.innerHTML = BIM_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+    }
+  }
+
+  setStatus(text, isError = false) {
+    if (!this.statusEl) return;
+    this.statusEl.textContent = text;
+    this.statusEl.style.color = isError ? 'var(--osc-accent-danger, #ef4444)' : 'var(--osc-text-muted)';
+  }
+
+  /** Ask the library for the devices matching `q` and show them. */
+  async searchLibrary(q = '') {
+    try {
+      this.setStatus('Searching the BIM library…');
+      const page = await searchParts({ q, limit: 200, hasPorts: !q });
+      const fetched = page.items.map(s => ({
+        id: s.id, bimId: s.id, manufacturer: s.manufacturer, model: s.model,
+        category: s.category, ru: s.rack_units ?? '', stage: s.stage, ports: null
+      }));
+      // unsaved local devices (New / Duplicate) stay at the top of the list
+      const local = this.library.filter(d => !d.bimId);
+      this.library = [...local, ...fetched];
+      this.setStatus(`${page.total.toLocaleString()} part${page.total === 1 ? '' : 's'} in the library${q ? ` match “${q}”` : ''}${page.total > fetched.length ? ` — showing ${fetched.length}` : ''}`);
+    } catch (e) {
+      this.setStatus(`BIM library unreachable (${e.message})`, true);
+    }
+    if (!this.selectedDevice && this.library.length) await this.select(this.library[0]);
+    else this.renderDeviceList();
+  }
+
+  /** Select a device; a library summary is swapped for its full part first. */
+  async select(dev) {
+    if (dev && dev.bimId && !dev._part) {
+      try {
+        const full = partToDevice(await getPart(dev.bimId));
+        const i = this.library.indexOf(dev);
+        if (i !== -1) this.library[i] = full;
+        dev = full;
+      } catch (e) {
+        this.setStatus(e.message, true);
+      }
+    }
+    this.selectedDevice = dev;
+    this.render();
+  }
+
+  async saveToLibrary() {
+    const dev = this.selectedDevice;
+    if (!dev) return;
+    try {
+      const part = deviceToPart(dev);
+      const saved = partToDevice(await savePart(part));
+      const i = this.library.indexOf(dev);
+      if (i !== -1) this.library[i] = saved;
+      this.selectedDevice = saved;
+      this.setStatus(`Saved ${saved.bimId} to the BIM library`);
+      this.render();
+    } catch (e) {
+      this.setStatus(e.message, true);
+    }
   }
 
   attachEvents() {
     this.btnOpen?.addEventListener('click', () => this.promptOpen());
     this.btnSave?.addEventListener('click', () => this.saveBlock());
+    this.btnSaveLibrary?.addEventListener('click', () => this.saveToLibrary());
     this.btnClose?.addEventListener('click', () => this.bridge.close());
     this.btnSyncDiscovered?.addEventListener('click', () => this.loadFromDiscoveredProject());
 
     this.searchInput?.addEventListener('input', (e) => {
-      this.renderDeviceList(e.target.value);
+      clearTimeout(this.searchTimer);
+      const q = e.target.value.trim();
+      this.searchTimer = setTimeout(() => this.searchLibrary(q), 250);
     });
 
     this.btnNewDevice?.addEventListener('click', () => {
@@ -205,17 +172,29 @@ export class DeviceLibraryApp {
       const dup = JSON.parse(JSON.stringify(this.selectedDevice));
       dup.id = `dev_${Date.now()}`;
       dup.model += ' (Copy)';
+      delete dup.bimId;              // unsaved until Save to Library; keeps _part's media/ext as a starting point
       this.library.unshift(dup);
       this.selectedDevice = dup;
       this.render();
       this.bridge.notifyChanged();
     });
 
-    this.btnDeleteDevice?.addEventListener('click', () => {
-      if (!this.selectedDevice || this.library.length <= 1) return;
-      this.library = this.library.filter(d => d.id !== this.selectedDevice.id);
-      this.selectedDevice = this.library[0];
-      this.render();
+    this.btnDeleteDevice?.addEventListener('click', async () => {
+      const dev = this.selectedDevice;
+      if (!dev) return;
+      if (dev.bimId) {
+        if (!confirm(`Delete ${dev.manufacturer} ${dev.model} from the BIM library for everyone?`)) return;
+        try {
+          await deletePart(dev.bimId);
+          this.setStatus(`Deleted ${dev.bimId} from the BIM library`);
+        } catch (e) {
+          this.setStatus(e.message, true);
+          return;
+        }
+      }
+      this.library = this.library.filter(d => d !== dev);
+      this.selectedDevice = null;
+      if (this.library.length) await this.select(this.library[0]); else this.render();
       this.bridge.notifyChanged();
     });
 
@@ -258,10 +237,12 @@ export class DeviceLibraryApp {
     });
   }
 
-  loadInitialData() {
-    this.loadFromDiscoveredProject().catch(() => {
-      this.render();
-    });
+  async loadInitialData() {
+    const wanted = new URLSearchParams(globalThis.location?.search || '').get('part');
+    if (wanted) {
+      await this.select({ id: wanted, bimId: wanted });
+    }
+    await this.searchLibrary(this.searchInput?.value?.trim() || '');
   }
 
   async loadFromDiscoveredProject() {
@@ -345,13 +326,13 @@ export class DeviceLibraryApp {
   renderDeviceList(filter = '') {
     if (!this.deviceListEl) return;
     this.deviceListEl.innerHTML = '';
-    const q = (filter || '').toLowerCase();
-
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // The library answered the search already; only the unsaved local devices are filtered here.
     this.library
-      .filter(d => !q || d.model.toLowerCase().includes(q) || d.manufacturer.toLowerCase().includes(q) || d.category.toLowerCase().includes(q))
+      .filter(d => d.bimId || !filter || `${d.manufacturer} ${d.model}`.toLowerCase().includes(String(filter).toLowerCase()))
       .forEach(dev => {
         const item = document.createElement('div');
-        const isActive = this.selectedDevice && this.selectedDevice.id === dev.id;
+        const isActive = this.selectedDevice && (this.selectedDevice === dev || this.selectedDevice.id === dev.id);
         item.className = `device-item ${isActive ? 'active' : ''}`;
         item.style.padding = '8px 10px';
         item.style.marginBottom = '4px';
@@ -361,16 +342,13 @@ export class DeviceLibraryApp {
         item.style.border = `1px solid ${isActive ? 'var(--osc-accent-primary)' : 'var(--osc-border-default)'}`;
 
         item.innerHTML = `
-          <div style="font-weight:600; color:${isActive ? 'var(--osc-accent-primary)' : 'var(--osc-text-primary)'}; font-size:12px;">${dev.model}</div>
+          <div style="font-weight:600; color:${isActive ? 'var(--osc-accent-primary)' : 'var(--osc-text-primary)'}; font-size:12px;">${esc(dev.model)}${dev.bimId ? '' : ' <span style="color:var(--osc-accent-primary);font-weight:400;">· unsaved</span>'}</div>
           <div style="font-size:10px; color:var(--osc-text-muted); display:flex; justify-content:space-between; margin-top:2px;">
-            <span>${dev.manufacturer}</span>
-            <span>${dev.ru}U · ${dev.category}</span>
+            <span>${esc(dev.manufacturer)}</span>
+            <span>${dev.ru ? `${dev.ru}U · ` : ''}${esc(dev.category)}${dev.stage === 'stub' ? ' · stub' : ''}</span>
           </div>
         `;
-        item.addEventListener('click', () => {
-          this.selectedDevice = dev;
-          this.render();
-        });
+        item.addEventListener('click', () => this.select(dev));
         this.deviceListEl.appendChild(item);
       });
   }
@@ -380,11 +358,12 @@ export class DeviceLibraryApp {
     this.inputManufacturer.value = this.selectedDevice.manufacturer || '';
     this.inputModel.value = this.selectedDevice.model || '';
     this.inputPartNumber.value = this.selectedDevice.partNumber || '';
-    this.selectCategory.value = this.selectedDevice.category || 'Audio';
-    this.inputRu.value = this.selectedDevice.ru || 1;
-    this.inputDepth.value = this.selectedDevice.depthMm || 300;
-    this.inputPower.value = this.selectedDevice.basePowerW || 0;
-    this.inputBtu.value = this.selectedDevice.btuHr || 0;
+    this.selectCategory.value = this.selectedDevice.category || 'Other';
+    // An unknown stays blank — the library never invents a 0 or a default depth.
+    this.inputRu.value = this.selectedDevice.ru ?? '';
+    this.inputDepth.value = this.selectedDevice.depthMm ?? '';
+    this.inputPower.value = this.selectedDevice.basePowerW ?? '';
+    this.inputBtu.value = this.selectedDevice.btuHr ?? '';
   }
 
   renderPortsTable() {
@@ -392,12 +371,17 @@ export class DeviceLibraryApp {
     this.portTableBody.innerHTML = '';
     const ports = this.selectedDevice.ports || [];
 
+    const extra = (list, value) => (value && !list.includes(value)
+      ? `<option value="${String(value).replace(/"/g, '&quot;')}" selected>${String(value).replace(/</g, '&lt;')}</option>` : '');
+    const TYPES = ['RJ45', 'XLR-F', 'XLR-M', 'Phoenix-Euroblock', 'BNC', 'HDMI', 'USB-B', 'USB-C', 'SFP', 'Terminal-Strip', 'IEC-C14'];
+    const SIGNALS = ['Analog Audio', 'Digital Audio', 'Network', 'Video', 'Serial Control', 'AC Power', 'RF Antenna'];
     ports.forEach((port, idx) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td><input type="text" class="cell-input" data-idx="${idx}" data-field="name" value="${port.name}"></td>
+        <td><input type="text" class="cell-input" data-idx="${idx}" data-field="name" value="${String(port.name ?? '').replace(/"/g, '&quot;')}"></td>
         <td>
           <select class="cell-input" data-idx="${idx}" data-field="type">
+            ${extra(TYPES, port.type)}
             <option value="RJ45" ${port.type === 'RJ45' ? 'selected' : ''}>RJ45</option>
             <option value="XLR-F" ${port.type === 'XLR-F' ? 'selected' : ''}>XLR-F</option>
             <option value="XLR-M" ${port.type === 'XLR-M' ? 'selected' : ''}>XLR-M</option>
@@ -413,6 +397,7 @@ export class DeviceLibraryApp {
         </td>
         <td>
           <select class="cell-input" data-idx="${idx}" data-field="signal">
+            ${extra(SIGNALS, port.signal)}
             <option value="Analog Audio" ${port.signal === 'Analog Audio' ? 'selected' : ''}>Analog Audio</option>
             <option value="Digital Audio" ${port.signal === 'Digital Audio' ? 'selected' : ''}>Digital Audio</option>
             <option value="Network" ${port.signal === 'Network' ? 'selected' : ''}>Network</option>
@@ -564,7 +549,7 @@ export class DeviceLibraryApp {
 let _deviceCounter = 1;
 
 export class DeviceLibraryStore {
-  constructor(initial = DEFAULT_DEVICE_LIBRARY) {
+  constructor(initial = []) {
     this.devices = JSON.parse(JSON.stringify(initial));
     this.activeId = this.devices.length > 0 ? this.devices[0].id : null;
   }

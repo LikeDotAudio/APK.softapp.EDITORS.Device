@@ -3,8 +3,9 @@
 
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { DEFAULT_DEVICE_LIBRARY } from './fixtures/defaultDevices.mjs';
 
-import { DEFAULT_DEVICE_LIBRARY, EXPANSION_CARDS } from '../js/deviceApp.js';
+import { EXPANSION_CARDS } from '../js/deviceApp.js';
 
 test('Device Library Default Models', () => {
   assert.ok(DEFAULT_DEVICE_LIBRARY.length >= 3);

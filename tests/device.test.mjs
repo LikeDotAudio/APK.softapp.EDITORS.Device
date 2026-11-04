@@ -1,13 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { DEFAULT_DEVICE_LIBRARY } from './fixtures/defaultDevices.mjs';
 import {
   EXPANSION_CARDS,
-  DEFAULT_DEVICE_LIBRARY,
   DeviceLibraryStore
 } from '../js/deviceApp.js';
 
 test('Device library defaults loaded', () => {
-  const store = new DeviceLibraryStore();
+  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
   const all = store.getAll();
   assert.ok(all.length >= 4);
   assert.equal(all[0].manufacturer, 'Q-SYS');
@@ -15,7 +15,7 @@ test('Device library defaults loaded', () => {
 });
 
 test('Device library getActive and setActive', () => {
-  const store = new DeviceLibraryStore();
+  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
   const active = store.getActive();
   assert.equal(active.id, 'dev-qsys-core110f');
 
@@ -25,7 +25,7 @@ test('Device library getActive and setActive', () => {
 });
 
 test('Device library add and clone device', () => {
-  const store = new DeviceLibraryStore();
+  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
   const initialCount = store.getAll().length;
 
   const cloned = store.cloneDevice('dev-qsys-core110f');
@@ -47,7 +47,7 @@ test('Device library add and clone device', () => {
 });
 
 test('Device library update and delete', () => {
-  const store = new DeviceLibraryStore();
+  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
   store.updateDevice('dev-cisco-cbs350-24p', { basePowerW: 55 });
   const updated = store.getById('dev-cisco-cbs350-24p');
   assert.equal(updated.basePowerW, 55);
@@ -58,7 +58,7 @@ test('Device library update and delete', () => {
 });
 
 test('Device power and port calculations', () => {
-  const store = new DeviceLibraryStore();
+  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
   const frame = store.getById('dev-modular-card-frame-4u');
   const power = store.calculateTotalPower(frame);
   const ports = store.calculateTotalPorts(frame);
