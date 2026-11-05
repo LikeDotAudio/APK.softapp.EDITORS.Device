@@ -1,0 +1,25 @@
+{
+  "about": "What the Device editor's port table offers (ROAD-3501). Connectors and formats are the CAD's catalogue (vendor/apk-vocabulary); this file only picks groups, maps this editor's older spellings onto catalogue entries, and adds the signal classes the catalogue does not name (each tied to one of its signal classes).",
+  "connectors": {
+    "groups": ["RJ-Modular", "Audio-XLR", "Audio-Bloc", "Audio", "Audio-Speaker", "Audio-Multipin", "Video", "RF", "USB", "SFP", "OC-Fiber", "LC-Fiber", "D-Sub", "WireTerminal", "Power-AC", "Power-DC", "Blank"],
+    "aliases": {
+      "XLR-F": "X3S",
+      "XLR-M": "X3P",
+      "USB-B": "USBB",
+      "Terminal-Strip": "TB##",
+      "IEC-C14": "C14"
+    }
+  },
+  "formats": {
+    "groups": ["Audio-Networked", "ST-2110"],
+    "extra": [
+      { "name": "Analog Audio", "class": "physical_audio" },
+      { "name": "Digital Audio", "class": "audio" },
+      { "name": "Network", "class": "physical_network" },
+      { "name": "Video", "class": "physical_video" },
+      { "name": "Serial Control", "class": "control" },
+      { "name": "AC Power", "class": "physical_power" },
+      { "name": "RF Antenna" }
+    ]
+  }
+}

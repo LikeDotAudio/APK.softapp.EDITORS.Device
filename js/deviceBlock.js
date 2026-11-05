@@ -3,12 +3,15 @@
 // The device block, in and out, and a discovered thing as a device — no DOM, no
 // bus, so the tests drive it.
 
+import { VOCABULARY } from './vocabulary.js';
+
 export const BLOCK_TYPE = 'device';
 
-/* The port vocabulary the editor offers (the port table's selects). A value a
-   block brings that is not here is kept and offered too. */
-export const PORT_TYPES = ['RJ45', 'XLR-F', 'XLR-M', 'Phoenix-Euroblock', 'BNC', 'HDMI', 'USB-B', 'USB-C', 'SFP', 'Terminal-Strip', 'IEC-C14'];
-export const PORT_SIGNALS = ['Analog Audio', 'Digital Audio', 'Network', 'Video', 'Serial Control', 'AC Power', 'RF Antenna'];
+/* The port vocabulary the editor offers (the port table's selects): the CAD's
+   connector catalogue and signal formats, through config/vocabulary.json
+   (ROAD-3501). A value a block brings that is not here is kept and offered too. */
+export const PORT_TYPES = VOCABULARY.connectorNames;
+export const PORT_SIGNALS = VOCABULARY.formatNames;
 export const PORT_DIRS = ['In', 'Out', 'Bidi'];
 
 /** A device from a block (the CAD's toEditor.load, or an opened .json). */
