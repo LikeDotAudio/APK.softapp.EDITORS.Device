@@ -14,3 +14,7 @@ devices of its own (`js/bimLibrary.js`):
 
 Unknown values stay blank — the library never invents a 0. Tests: `node --test tests/*.test.mjs`
 (the five devices the editor used to ship are a test fixture, `tests/fixtures/defaultDevices.mjs`).
+
+<!-- wiki:smoke -->
+**Smoke test** — ✅ PASS 3/3 since 2026-11-04 21:31 EST — [results](Documentation/%F0%9F%A7%A9Manual%20and%20Artifacts/SMOKE.md)
+<!-- /wiki:smoke -->
