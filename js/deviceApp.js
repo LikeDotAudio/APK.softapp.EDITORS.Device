@@ -10,7 +10,7 @@ import {
 const S = () => window.APKSoftapp;
 
 import {
-  BIM_CATEGORIES, partToDevice, deviceToPart, searchParts, getPart, savePart, deletePart
+  BIM_CATEGORIES, partToDevice, deviceToPart, searchParts, getPart, savePart, deletePart, bimApi
 } from './bimLibrary.js';
 
 export const EXPANSION_CARDS = [
@@ -129,6 +129,32 @@ export class DeviceLibraryApp {
     }
     this.selectedDevice = dev;
     this.render();
+    this.showLive(dev);
+  }
+
+  /** Connected, discovered, known, with a panel on the bus: offer its default GUI. */
+  async showLive(dev) {
+    this.btnLiveGui?.remove();
+    this.btnLiveGui = null;
+    if (!dev?.bimId) return;
+    let lib;
+    try { lib = await import(`${bimApi()}/ui/picker.js`); } catch (_) { return; }
+    const live = await lib.liveDevices(dev.bimId);
+    if (this.selectedDevice !== dev) return;
+    const online = live.filter(d => d.state === 'online');
+    const target = online.find(d => d.panel?.prefix);
+    if (!live.length) return;
+    this.setStatus(`${online.length} on the bench${live.length > online.length ? ` · ${live.length - online.length} gone dark` : ''}`);
+    if (!target) return;
+    const b = document.createElement('button');
+    b.className = 'btn btn-secondary';
+    b.textContent = online.length > 1 ? `▶ Open its panel (${online.length})` : '▶ Open its panel';
+    b.title = `Its default GUI: the panel ${target.name} presents on the bus`;
+    b.addEventListener('click', () => {
+      if (!lib.openDefaultGui(target, target.name)) this.setStatus('Open the Device editor inside the OS to open its panel', true);
+    });
+    this.statusEl?.after(b);
+    this.btnLiveGui = b;
   }
 
   async saveToLibrary() {
