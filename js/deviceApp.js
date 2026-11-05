@@ -318,16 +318,16 @@ export class DeviceLibraryApp {
     await this.searchLibrary(this.searchInput?.value?.trim() || '');
   }
 
-  /** Expansion cards from the BIM library; the config's fallback when it is unreachable. */
+  /** Expansion cards: the library's card products beside the config's generic types. */
   async loadCards() {
     const { cards, source, error } = await loadExpansionCards();
     this.cards = cards;
-    // Library down but the fallback read: searchLibrary already says the library is down.
+    // Library down but the generic types read: searchLibrary already says the library is down.
     if (source === 'none' && error) {
       S().showProblem(error, {
         subject: 'Expansion cards',
         fix: [`Cards are BIM library parts (DATABASE.server.BIM) at ${bimApi()}: check it is running in DockTor.`,
-          'Standalone, the fallback list is config/expansion-cards.json: check it is served next to the page.'],
+          'The generic card types are config/expansion-cards.json: check it is served next to the page.'],
         onRetry: () => this.loadCards(),
       });
     }

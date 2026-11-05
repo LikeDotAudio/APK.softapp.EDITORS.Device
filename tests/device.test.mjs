@@ -4,7 +4,7 @@ import { DEFAULT_DEVICE_LIBRARY } from './fixtures/defaultDevices.mjs';
 import { readFileSync } from 'node:fs';
 import { DeviceLibraryStore } from '../js/deviceApp.js';
 
-const CARDS = JSON.parse(readFileSync(new URL('../config/expansion-cards.json', import.meta.url))).fallback;
+const CARDS = JSON.parse(readFileSync(new URL('../config/expansion-cards.json', import.meta.url))).generic;
 
 test('Device library defaults loaded', () => {
   const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);

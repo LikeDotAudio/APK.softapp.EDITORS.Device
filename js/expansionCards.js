@@ -1,11 +1,12 @@
 // Part of the APK.audio project — http://APK.audio — made by Anthony Kuzub
 // MIT Licence. Free, for everyone, for ever. Full text in LICENSE at the root.
-/* EXPANSION CARDS ARE BIM LIBRARY PARTS. No card list lives in this source:
-   config/expansion-cards.json names the part classes that are cards
-   (bim_classes) and carries a fallback list for when the library is
-   unreachable or has no card parts yet (standalone use, older blocks whose
-   slots name the fallback ids). partToCard is pure; loadExpansionCards takes
-   its fetch so it runs under node. */
+/* EXPANSION CARDS: generic types from config, real products from the BIM library.
+   config/expansion-cards.json `generic` holds the card TYPES a design can name
+   before a product is chosen (always offered; older blocks' slots name their ids);
+   `bim_classes` names the library part classes that are card PRODUCTS, offered
+   beside them when the library holds any. No card list lives in this source, and
+   a generic type is never put in the library as if it were a product.
+   partToCard is pure; loadExpansionCards takes its fetch so it runs under node. */
 
 import { bimApi } from './bimLibrary.js';
 
@@ -25,12 +26,13 @@ export function partToCard(part) {
 }
 
 /**
- * The cards, from the library when it answers with any, else the config's fallback.
- * → { cards, source: 'bim' | 'config' | 'none', error } — error is the library's (or the
- * config's) failure, for APKSoftapp.showProblem; cards is never undefined.
+ * The cards: the library's card products (when it answers with any) and the
+ * config's generic types, products first.
+ * → { cards, source: 'bim+config' | 'bim' | 'config' | 'none', error } — error is the
+ * library's (or the config's) failure, for APKSoftapp.showProblem; cards is never undefined.
  */
 export async function loadExpansionCards({ fetchImpl = globalThis.fetch, api = bimApi(), configUrl = CARDS_CONFIG_URL } = {}) {
-  let config = { bim_classes: [], fallback: [] };
+  let config = { bim_classes: [], generic: [] };
   let error = null;
   try {
     const res = await fetchImpl(configUrl, { cache: 'no-store' });
@@ -39,6 +41,9 @@ export async function loadExpansionCards({ fetchImpl = globalThis.fetch, api = b
   } catch (e) {
     error = e;
   }
+  // `fallback` is this file's name for `generic` before 2026-11-04; still read.
+  const generic = Array.isArray(config.generic) ? config.generic : Array.isArray(config.fallback) ? config.fallback : [];
+  let products = [];
   const classes = (config.bim_classes || []).filter(Boolean);
   if (classes.length) {
     try {
@@ -46,15 +51,16 @@ export async function loadExpansionCards({ fetchImpl = globalThis.fetch, api = b
       const res = await fetchImpl(`${api}/parts?${qs}`);
       if (!res.ok) throw Object.assign(new Error(`BIM card parts: ${res.status}`), { status: res.status, code: res.status >= 500 ? 'http_server_error' : 'fetch_failed' });
       const page = await res.json();
-      const cards = (page.items || []).map(partToCard);
-      if (cards.length) return { cards, source: 'bim', error: null };
+      products = (page.items || []).map(partToCard);
     } catch (e) {
       if (!e.code) e.code = 'fetch_failed';
       error = error || e;
     }
   }
-  const fallback = Array.isArray(config.fallback) ? config.fallback : [];
-  return { cards: fallback, source: fallback.length ? 'config' : 'none', error };
+  const ids = new Set(products.map((c) => c.id));
+  const cards = [...products, ...generic.filter((c) => !ids.has(c.id))];
+  const source = products.length && generic.length ? 'bim+config' : products.length ? 'bim' : generic.length ? 'config' : 'none';
+  return { cards, source, error: products.length ? null : error };
 }
 
 /** The card a slot holds, from a card list. */

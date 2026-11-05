@@ -25,7 +25,7 @@ test('Device Library Default Models', () => {
   assert.ok(qsys.ports.length >= 5);
 });
 
-test('Expansion cards: the config fallback keeps every card the source used to list', async () => {
+test('Expansion cards: the generic types are always offered, the ids older blocks name', async () => {
   const { cards, source, error } = await loadExpansionCards({ fetchImpl: fakeFetch(new TypeError('fetch failed')), api: '/api/bim' });
   assert.equal(source, 'config');
   assert.ok(error);                                   // the library's failure is handed back for showProblem
@@ -35,22 +35,23 @@ test('Expansion cards: the config fallback keeps every card the source used to l
   assert.equal(dante.type, 'Network');
 });
 
-test('Expansion cards: BIM parts of the configured classes win over the fallback', async () => {
+test('Expansion cards: BIM card products are offered first, beside the generic types', async () => {
   const seen = [];
   const part = { id: 'generic/dante-32', manufacturer: 'Generic', model: 'Dante 32', class: 'Expansion Card', category: 'Audio',
     power: { watts: 9 }, ports: [{ group: 'Primary', connector: 'RJ45' }, { group: 'Secondary', connector: 'RJ45', count: 1 }] };
   const fetchImpl = async (url) => { seen.push(String(url)); return fakeFetch({ total: 1, items: [part] })(url); };
   const { cards, source, error } = await loadExpansionCards({ fetchImpl, api: '/api/bim' });
-  assert.equal(source, 'bim');
+  assert.equal(source, 'bim+config');
   assert.equal(error, null);
-  assert.deepEqual(cards, [partToCard(part)]);
+  assert.deepEqual(cards[0], partToCard(part));
+  assert.equal(cards.length, 1 + 5, 'the product, then the five generic types');
   assert.deepEqual(cards[0], { id: 'generic/dante-32', name: 'Generic Dante 32', ports: 2, powerW: 9, type: 'Expansion Card', bimId: 'generic/dante-32' });
   const q = new URL(seen.find(u => u.includes('/parts')), 'http://x').searchParams;
   assert.equal(q.get('class'), 'Expansion Card,Option Card,I/O Card');
   assert.equal(q.get('full'), '1');
 });
 
-test('Expansion cards: a library with no card parts falls back to the config', async () => {
+test('Expansion cards: a library with no card parts offers the generic types', async () => {
   const { source, cards } = await loadExpansionCards({ fetchImpl: fakeFetch({ total: 0, items: [] }), api: '/api/bim' });
   assert.equal(source, 'config');
   assert.equal(cards.length, 5);
