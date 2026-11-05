@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_DEVICE_LIBRARY } from './fixtures/defaultDevices.mjs';
-import {
-  EXPANSION_CARDS,
-  DeviceLibraryStore
-} from '../js/deviceApp.js';
+import { readFileSync } from 'node:fs';
+import { DeviceLibraryStore } from '../js/deviceApp.js';
+
+const CARDS = JSON.parse(readFileSync(new URL('../config/expansion-cards.json', import.meta.url))).fallback;
 
 test('Device library defaults loaded', () => {
   const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
@@ -58,7 +58,7 @@ test('Device library update and delete', () => {
 });
 
 test('Device power and port calculations', () => {
-  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY);
+  const store = new DeviceLibraryStore(DEFAULT_DEVICE_LIBRARY, { cards: CARDS });
   const frame = store.getById('dev-modular-card-frame-4u');
   const power = store.calculateTotalPower(frame);
   const ports = store.calculateTotalPorts(frame);

@@ -5,7 +5,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DEFAULT_DEVICE_LIBRARY } from './fixtures/defaultDevices.mjs';
 
-import { EXPANSION_CARDS } from '../js/deviceApp.js';
+import { readFileSync } from 'node:fs';
+import { loadExpansionCards, partToCard } from '../js/expansionCards.js';
+
+const CONFIG = readFileSync(new URL('../config/expansion-cards.json', import.meta.url), 'utf8');
+/** A fetch that serves the config file and answers the BIM route with `bim` (or throws, as unreachable). */
+const fakeFetch = (bim) => async (url) => {
+  if (String(url).includes('expansion-cards.json')) return { ok: true, status: 200, json: async () => JSON.parse(CONFIG) };
+  if (bim instanceof Error) throw bim;
+  return { ok: true, status: 200, json: async () => bim };
+};
 
 test('Device Library Default Models', () => {
   assert.ok(DEFAULT_DEVICE_LIBRARY.length >= 3);
@@ -16,10 +25,33 @@ test('Device Library Default Models', () => {
   assert.ok(qsys.ports.length >= 5);
 });
 
-test('Expansion Cards Catalog', () => {
-  assert.ok(EXPANSION_CARDS.length >= 4);
-  const dante = EXPANSION_CARDS.find(c => c.id === 'card-dante32');
-  assert.ok(dante);
+test('Expansion cards: the config fallback keeps every card the source used to list', async () => {
+  const { cards, source, error } = await loadExpansionCards({ fetchImpl: fakeFetch(new TypeError('fetch failed')), api: '/api/bim' });
+  assert.equal(source, 'config');
+  assert.ok(error);                                   // the library's failure is handed back for showProblem
+  assert.deepEqual(cards.map(c => c.id), ['card-mic8', 'card-out8', 'card-dante32', 'card-dsp', 'card-gpio']);
+  const dante = cards.find(c => c.id === 'card-dante32');
   assert.equal(dante.ports, 2);
   assert.equal(dante.type, 'Network');
+});
+
+test('Expansion cards: BIM parts of the configured classes win over the fallback', async () => {
+  const seen = [];
+  const part = { id: 'generic/dante-32', manufacturer: 'Generic', model: 'Dante 32', class: 'Expansion Card', category: 'Audio',
+    power: { watts: 9 }, ports: [{ group: 'Primary', connector: 'RJ45' }, { group: 'Secondary', connector: 'RJ45', count: 1 }] };
+  const fetchImpl = async (url) => { seen.push(String(url)); return fakeFetch({ total: 1, items: [part] })(url); };
+  const { cards, source, error } = await loadExpansionCards({ fetchImpl, api: '/api/bim' });
+  assert.equal(source, 'bim');
+  assert.equal(error, null);
+  assert.deepEqual(cards, [partToCard(part)]);
+  assert.deepEqual(cards[0], { id: 'generic/dante-32', name: 'Generic Dante 32', ports: 2, powerW: 9, type: 'Expansion Card', bimId: 'generic/dante-32' });
+  const q = new URL(seen.find(u => u.includes('/parts')), 'http://x').searchParams;
+  assert.equal(q.get('class'), 'Expansion Card,Option Card,I/O Card');
+  assert.equal(q.get('full'), '1');
+});
+
+test('Expansion cards: a library with no card parts falls back to the config', async () => {
+  const { source, cards } = await loadExpansionCards({ fetchImpl: fakeFetch({ total: 0, items: [] }), api: '/api/bim' });
+  assert.equal(source, 'config');
+  assert.equal(cards.length, 5);
 });

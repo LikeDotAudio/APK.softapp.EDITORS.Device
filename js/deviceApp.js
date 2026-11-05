@@ -13,13 +13,7 @@ import {
   BIM_CATEGORIES, partToDevice, deviceToPart, searchParts, getPart, savePart, deletePart, bimApi
 } from './bimLibrary.js';
 
-export const EXPANSION_CARDS = [
-  { id: 'card-mic8', name: '8-Ch Mic/Line Analog Input Card', ports: 8, powerW: 24, type: 'Input' },
-  { id: 'card-out8', name: '8-Ch Line Analog Output Card', ports: 8, powerW: 18, type: 'Output' },
-  { id: 'card-dante32', name: '32x32 Dante/AES67 Network Card', ports: 2, powerW: 12, type: 'Network' },
-  { id: 'card-dsp', name: 'Dual SHARC DSP Coprocessor Card', ports: 0, powerW: 35, type: 'Processing' },
-  { id: 'card-gpio', name: '8x8 Logic GPIO / Relay Card', ports: 16, powerW: 5, type: 'Control' },
-];
+import { loadExpansionCards, cardFor } from './expansionCards.js';
 
 export class DeviceLibraryApp {
   constructor() {
@@ -29,6 +23,32 @@ export class DeviceLibraryApp {
     this.searchTimer = null;
 
     this.discovery = null;     // APKSoftapp.discovered() handle, once the bus answers
+    this.cards = [];           // expansion cards: BIM parts of config/expansion-cards.json's classes
+
+    S().describe({
+      name: 'Device Editor',
+      does: 'Edits one device of the BIM library: maker, model, rack size, depth, power, heat and its port interfaces, drawn as a 19-inch front panel.',
+      inputs: [
+        { name: 'BIM library', from: 'DATABASE.server.BIM at /api/bim (search, read a part; ?bim= overrides, ?part= opens one)' },
+        { name: 'Device block', from: 'the CAD (when opened from a drawing), or a .json file via Open', kind: 'file' },
+        { name: 'Discovered devices', from: 'the bus: things scanners and agents found (kinds in config/discovery.json)', kind: 'bus' },
+        { name: 'Live instances', from: 'the BIM library: the bench devices of this part and the panel each presents on the bus' },
+      ],
+      outputs: [
+        { name: 'BIM part', to: 'the BIM library on Save to Library; Delete removes it for everyone' },
+        { name: 'Device block', to: 'the CAD on Save & Return and on every edit; standalone Save downloads a .json', kind: 'file' },
+      ],
+      controls: [
+        { name: 'Search', how: 'type to search the library (maker, model, connector); click a device to edit it' },
+        { name: '+ New / Duplicate / Delete', how: 'start, copy or remove a device (Delete asks first for a library part)' },
+        { name: 'Manufacturer ... BTU', how: 'device fields; the panel drawing follows (depth in mm)' },
+        { name: '+ Add Port Interface', how: 'add a port; edit name, connector, signal, direction, count in the table' },
+        { name: 'Discovered', how: 'add what the bus found as unsaved devices' },
+        { name: 'Open its panel', how: 'when the part is live on the bench, opens the panel it presents on the bus' },
+        { name: 'Open / Save to Library / Save & Return / Close', how: 'header buttons' },
+      ],
+      problems: ['fetch_failed', 'http_not_found', 'http_forbidden', 'http_server_error', 'bad_json', 'bad_input', 'file_unreadable', 'save_failed', 'not_in_cad', 'bus_missing'],
+    });
 
     this.initElements();
     this.createPortsTable();
@@ -45,6 +65,7 @@ export class DeviceLibraryApp {
     });
     this.loadInitialData();
     this.startDiscovery();
+    this.loadCards();
   }
 
   /** The host is told of every edit; standalone there is nobody to tell. */
@@ -110,6 +131,7 @@ export class DeviceLibraryApp {
       this.setStatus(`${page.total.toLocaleString()} part${page.total === 1 ? '' : 's'} in the library${q ? ` match “${q}”` : ''}${page.total > fetched.length ? ` — showing ${fetched.length}` : ''}`);
     } catch (e) {
       this.setStatus(`BIM library unreachable (${e.message})`, true);
+      S().showProblem(e, { subject: 'BIM library search', fix: [`The device list is the BIM library (DATABASE.server.BIM) at ${bimApi()}: check it is running in DockTor.`], onRetry: () => this.searchLibrary(q) });
     }
     if (!this.selectedDevice && this.library.length) await this.select(this.library[0]);
     else this.renderDeviceList();
@@ -125,6 +147,7 @@ export class DeviceLibraryApp {
         dev = full;
       } catch (e) {
         this.setStatus(e.message, true);
+        S().showProblem(e, { subject: `BIM part ${dev.bimId}`, fix: [`The device list is the BIM library (DATABASE.server.BIM) at ${bimApi()}: check it is running in DockTor.`], onRetry: () => this.select(dev) });
       }
     }
     this.selectedDevice = dev;
@@ -170,6 +193,11 @@ export class DeviceLibraryApp {
       this.render();
     } catch (e) {
       this.setStatus(e.message, true);
+      S().showProblem(e, {
+        subject: `Save to Library: ${dev.manufacturer} ${dev.model}`,
+        fix: ['The device is still on screen and unsaved: Save & Return (or its .json download) keeps a copy meanwhile.'],
+        onRetry: () => this.saveToLibrary(),
+      });
     }
   }
 
@@ -233,6 +261,7 @@ export class DeviceLibraryApp {
           this.setStatus(`Deleted ${dev.bimId} from the BIM library`);
         } catch (e) {
           this.setStatus(e.message, true);
+          S().showProblem(e, { subject: `Delete ${dev.bimId}`, onRetry: () => this.btnDeleteDevice?.click() });
           return;
         }
       }
@@ -289,6 +318,21 @@ export class DeviceLibraryApp {
     await this.searchLibrary(this.searchInput?.value?.trim() || '');
   }
 
+  /** Expansion cards from the BIM library; the config's fallback when it is unreachable. */
+  async loadCards() {
+    const { cards, source, error } = await loadExpansionCards();
+    this.cards = cards;
+    // Library down but the fallback read: searchLibrary already says the library is down.
+    if (source === 'none' && error) {
+      S().showProblem(error, {
+        subject: 'Expansion cards',
+        fix: [`Cards are BIM library parts (DATABASE.server.BIM) at ${bimApi()}: check it is running in DockTor.`,
+          'Standalone, the fallback list is config/expansion-cards.json: check it is served next to the page.'],
+        onRetry: () => this.loadCards(),
+      });
+    }
+  }
+
   /** What the bus knows, through APKSoftapp; the kinds offered are config/discovery.json's. */
   async startDiscovery() {
     let kinds = [];
@@ -298,6 +342,7 @@ export class DeviceLibraryApp {
     } catch (_) { /* no config: every kind */ }
     const d = await S().discovered({ kinds, onChange: (things) => this.sayDiscovered(things) });
     this.discovery = d.ok ? d : null;
+    this.discoveryProblem = d.ok ? null : d.problem;
     if (!d.ok) this.sayDiscovery(d.reason, 'dead');
     else this.sayDiscovered(d.things());
   }
@@ -316,7 +361,14 @@ export class DeviceLibraryApp {
 
   /** Discovered things become unsaved devices (by MAC / serial, once each); size and power stay blank. */
   addDiscovered() {
-    if (!this.discovery) return;
+    if (!this.discovery) {
+      // the button did nothing before: say why, and Retry reads the bus again
+      S().showProblem(this.discoveryProblem || 'bus_missing', {
+        subject: 'Discovered devices',
+        onRetry: () => this.startDiscovery().then(() => { if (this.discovery) this.addDiscovered(); }),
+      });
+      return;
+    }
     const fresh = newDiscoveredDevices(this.library, this.discovery.things());
     if (!fresh.length) { this.sayDiscovery('Every discovered device is in the list already.', 'kinda'); return; }
     this.library = [...fresh, ...this.library];
@@ -512,12 +564,21 @@ export class DeviceLibraryApp {
       const file = e.target.files[0];
       if (!file) return;
       const reader = new FileReader();
+      reader.onerror = () => S().showProblem('file_unreadable', {
+        subject: file.name, detail: reader.error && reader.error.message, onRetry: () => this.promptOpen(),
+      });
       reader.onload = (re) => {
         try {
           const parsed = JSON.parse(re.target.result);
+          if (!parsed || typeof parsed !== 'object') throw new TypeError('the file holds no device object');
           this.handleBlockLoaded(parsed, { title: file.name });
         } catch (err) {
-          alert('Invalid JSON device block');
+          S().showProblem(err instanceof SyntaxError ? 'bad_json' : 'bad_input', {
+            subject: file.name,
+            detail: err.message,
+            fix: ['Open a device block .json (Save & Return outside the CAD downloads one).'],
+            onRetry: () => this.promptOpen(),
+          });
         }
       };
       reader.readAsText(file);
@@ -529,8 +590,10 @@ export class DeviceLibraryApp {
 let _deviceCounter = 1;
 
 export class DeviceLibraryStore {
-  constructor(initial = []) {
+  /** `cards`: the expansion cards slots may hold (loadExpansionCards' list); none = slots add nothing. */
+  constructor(initial = [], { cards = [] } = {}) {
     this.devices = JSON.parse(JSON.stringify(initial));
+    this.cards = cards;
     this.activeId = this.devices.length > 0 ? this.devices[0].id : null;
   }
 
@@ -612,7 +675,7 @@ export class DeviceLibraryStore {
     if (Array.isArray(dev.slots)) {
       dev.slots.forEach(slot => {
         if (slot && slot.cardId) {
-          const card = EXPANSION_CARDS.find(c => c.id === slot.cardId);
+          const card = cardFor(this.cards, slot.cardId);
           if (card && card.powerW) power += card.powerW;
         }
       });
@@ -631,7 +694,7 @@ export class DeviceLibraryStore {
     if (Array.isArray(dev.slots)) {
       dev.slots.forEach(slot => {
         if (slot && slot.cardId) {
-          const card = EXPANSION_CARDS.find(c => c.id === slot.cardId);
+          const card = cardFor(this.cards, slot.cardId);
           if (card && card.ports) ports += card.ports;
         }
       });

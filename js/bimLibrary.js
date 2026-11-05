@@ -131,10 +131,21 @@ export function bimApi() {
   return (globalThis.APK_BIM_API || '/api/bim').replace(/\/$/, '');
 }
 
+/* An HTTP failure as an Error that carries its problem code (contracts/problems), so
+   APKSoftapp.showProblem says what to do about it, not just the status. */
+function httpError(message, status) {
+  const err = new Error(message);
+  err.status = status;
+  err.code = status === 401 || status === 403 ? 'http_forbidden'
+    : status === 404 ? 'http_not_found'
+      : status >= 500 ? 'http_server_error' : 'bad_input';
+  return err;
+}
+
 async function json(res, what) {
-  if (res.status === 401) throw new Error(`${what}: the gateway wants the bench credential for a library write`);
+  if (res.status === 401) throw httpError(`${what}: the gateway wants the bench credential for a library write`, 401);
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(`${what}: ${body.error || res.status}`);
+  if (!res.ok) throw httpError(`${what}: ${body.error || res.status}`, res.status);
   return body;
 }
 

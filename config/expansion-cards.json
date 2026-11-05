@@ -1,0 +1,11 @@
+{
+  "_why": "Expansion cards a chassis slot can hold. They are BIM library parts (DATABASE.server.BIM, /api/bim): every part whose `class` is one of bim_classes is a card. `fallback` is read only when the library is unreachable or holds no card parts (standalone use); its ids are the ones older device blocks' slots name (slot.cardId).",
+  "bim_classes": ["Expansion Card", "Option Card", "I/O Card"],
+  "fallback": [
+    { "id": "card-mic8", "name": "8-Ch Mic/Line Analog Input Card", "ports": 8, "powerW": 24, "type": "Input" },
+    { "id": "card-out8", "name": "8-Ch Line Analog Output Card", "ports": 8, "powerW": 18, "type": "Output" },
+    { "id": "card-dante32", "name": "32x32 Dante/AES67 Network Card", "ports": 2, "powerW": 12, "type": "Network" },
+    { "id": "card-dsp", "name": "Dual SHARC DSP Coprocessor Card", "ports": 0, "powerW": 35, "type": "Processing" },
+    { "id": "card-gpio", "name": "8x8 Logic GPIO / Relay Card", "ports": 16, "powerW": 5, "type": "Control" }
+  ]
+}
