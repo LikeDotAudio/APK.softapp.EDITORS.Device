@@ -6,6 +6,7 @@
   <title>Device Library & Chassis Editor · Standalone Block Editor</title>
   <link rel="stylesheet" href="./vendor/apk-contracts/apk-tokens.css">
   <link rel="stylesheet" href="./css/theme.css">
+  <link rel="stylesheet" href="./vendor/apk-table/apk-table.css">
   <style>
     .device-app-container {
       display: grid;
@@ -105,54 +106,12 @@
       overflow: auto;
     }
 
-    table.ports-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 11px;
-    }
+    #device-port-table { font-size: 11px; }
 
-    table.ports-table th {
-      position: sticky;
-      top: 0;
-      background: var(--osc-bg-input);
-      color: var(--osc-text-muted);
-      padding: 6px 8px;
-      text-align: left;
-      border-bottom: 1px solid var(--osc-border-default);
-      font-weight: 600;
-      z-index: 2;
-    }
-
-    table.ports-table td {
-      padding: 2px 4px;
-      border-bottom: 1px solid var(--osc-border-default);
-    }
-
-    .cell-input {
-      width: 100%;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--osc-text-primary);
-      padding: 4px 6px;
-      font-size: 11px;
-      border-radius: 2px;
-      font-family: inherit;
-    }
-
-    .cell-input:focus {
-      background: var(--osc-bg-input);
-      border-color: var(--osc-accent-primary);
-      outline: none;
-    }
-
-    .text-center {
-      text-align: center;
-    }
-
-    .col-actions {
-      width: 45px;
-      text-align: center;
-    }
+    .discovery-status { font-size: 10px; color: var(--osc-text-muted); max-width: 240px; }
+    .discovery-status[data-apk-state="dead"] { color: var(--apk-state-dead, #ef4444); }
+    .discovery-status[data-apk-state="good"] { color: var(--apk-state-good, #22c55e); }
+    .discovery-status[data-apk-state="kinda"] { color: var(--apk-state-kinda, #eab308); }
   </style>
 </head>
 <body class="theme-deep-horizon">
@@ -163,7 +122,8 @@
       <span class="window-pill" id="block-tag">STANDALONE BLOCK EDITOR</span>
     </div>
     <div class="window-actions">
-      <button class="btn btn-secondary" id="btn-sync-discovered" title="Load live devices from Discovered Project">
+      <span class="discovery-status" id="discovery-status" role="status"></span>
+      <button class="btn btn-secondary" id="btn-sync-discovered" title="Add what the bus has discovered to the list, as unsaved devices">
         <span class="btn-icon">⚡</span> Discovered
       </button>
       <button class="btn btn-secondary" id="btn-open" title="Open block JSON">
@@ -250,24 +210,16 @@
           <button class="btn btn-primary btn-sm" id="btn-add-port">+ Add Port Interface</button>
         </div>
         <div class="ports-table-container">
-          <table class="ports-table">
-            <thead>
-              <tr>
-                <th>Port Group / Name</th>
-                <th>Connector Type</th>
-                <th>Signal Type</th>
-                <th>Direction</th>
-                <th style="width:50px;" class="text-center">Count</th>
-                <th class="col-actions">Act</th>
-              </tr>
-            </thead>
-            <tbody id="device-port-table-body"></tbody>
-          </table>
+          <div id="device-port-table"></div>
         </div>
       </section>
     </main>
   </div>
 
+  <script src="./vendor/apk-contracts/apk-contracts.global.js"></script>
+  <script src="/FrontEnd/shared/apk-bus.js"></script>
+  <script src="./vendor/apk-softapp/apk-softapp.js"></script>
+  <script src="./vendor/apk-table/apk-table.js"></script>
   <script type="module" src="./js/deviceApp.js"></script>
 </body>
 </html>

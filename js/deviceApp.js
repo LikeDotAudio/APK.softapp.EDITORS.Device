@@ -2,7 +2,12 @@
 // Part of the APK.audio project — http://APK.audio — Anthony Kuzub
 // MIT Licence. Free, for everyone, forever.
 
-import { BlockBridge } from './blockBridge.js';
+import {
+  BLOCK_TYPE, PORT_TYPES, PORT_SIGNALS, PORT_DIRS,
+  deviceFromBlock, deviceToBlock, deviceMeta, newDiscoveredDevices,
+} from './deviceBlock.js';
+
+const S = () => window.APKSoftapp;
 
 import {
   BIM_CATEGORIES, partToDevice, deviceToPart, searchParts, getPart, savePart, deletePart
@@ -23,16 +28,28 @@ export class DeviceLibraryApp {
     this.selectedDevice = null;
     this.searchTimer = null;
 
-    this.bridge = new BlockBridge({
-      name: 'Device Editor',
-      type: 'device',
-      onBlockLoaded: (block, meta) => this.handleBlockLoaded(block, meta),
-      onBlockChanged: () => {},
-    });
+    this.discovery = null;     // APKSoftapp.discovered() handle, once the bus answers
 
     this.initElements();
+    this.createPortsTable();
     this.attachEvents();
+
+    // The CAD (cad.like.audio/host@1): load adds the block's device; request asks for it back.
+    S().inheritTheme();
+    this.host = S().connectHost({
+      editor: 'Device Editor',
+      blockType: BLOCK_TYPE,
+      onLoad: (block, meta) => this.handleBlockLoaded(block, meta),
+      onRequest: () => (this.selectedDevice
+        ? { block: deviceToBlock(this.selectedDevice), meta: deviceMeta(this.selectedDevice) } : undefined),
+    });
     this.loadInitialData();
+    this.startDiscovery();
+  }
+
+  /** The host is told of every edit; standalone there is nobody to tell. */
+  changed() {
+    if (this.selectedDevice) this.host?.changed(deviceToBlock(this.selectedDevice), deviceMeta(this.selectedDevice));
   }
 
   initElements() {
@@ -58,7 +75,8 @@ export class DeviceLibraryApp {
     this.inputBtu = document.getElementById('input-btu');
 
     // Ports Table
-    this.portTableBody = document.getElementById('device-port-table-body');
+    this.portTableHost = document.getElementById('device-port-table');
+    this.discoveryStatus = document.getElementById('discovery-status');
     this.btnAddPort = document.getElementById('btn-add-port');
 
     // Visual Chassis Preview
@@ -67,7 +85,7 @@ export class DeviceLibraryApp {
     this.btnSaveLibrary = document.getElementById('btn-save-library');
     this.statusEl = document.getElementById('library-status');
     if (this.selectCategory) {
-      this.selectCategory.innerHTML = BIM_CATEGORIES.map(c => `<option value="${c}">${c}</option>`).join('');
+      this.selectCategory.replaceChildren(...BIM_CATEGORIES.map(c => new Option(c, c)));
     }
   }
 
@@ -133,8 +151,8 @@ export class DeviceLibraryApp {
     this.btnOpen?.addEventListener('click', () => this.promptOpen());
     this.btnSave?.addEventListener('click', () => this.saveBlock());
     this.btnSaveLibrary?.addEventListener('click', () => this.saveToLibrary());
-    this.btnClose?.addEventListener('click', () => this.bridge.close());
-    this.btnSyncDiscovered?.addEventListener('click', () => this.loadFromDiscoveredProject());
+    this.btnClose?.addEventListener('click', () => this.host.close());
+    this.btnSyncDiscovered?.addEventListener('click', () => this.addDiscovered());
 
     this.searchInput?.addEventListener('input', (e) => {
       clearTimeout(this.searchTimer);
@@ -164,7 +182,7 @@ export class DeviceLibraryApp {
       this.library.unshift(newDev);
       this.selectedDevice = newDev;
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnDuplicateDevice?.addEventListener('click', () => {
@@ -176,7 +194,7 @@ export class DeviceLibraryApp {
       this.library.unshift(dup);
       this.selectedDevice = dup;
       this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     this.btnDeleteDevice?.addEventListener('click', async () => {
@@ -195,7 +213,7 @@ export class DeviceLibraryApp {
       this.library = this.library.filter(d => d !== dev);
       this.selectedDevice = null;
       if (this.library.length) await this.select(this.library[0]); else this.render();
-      this.bridge.notifyChanged();
+      this.changed();
     });
 
     // Form inputs change
@@ -215,7 +233,7 @@ export class DeviceLibraryApp {
         this.selectedDevice[f] = isNum ? (parseInt(e.target.value, 10) || 0) : e.target.value;
         this.renderChassisPreview();
         this.renderDeviceList(this.searchInput?.value);
-        this.bridge.notifyChanged();
+        this.changed();
       });
     });
 
@@ -233,7 +251,7 @@ export class DeviceLibraryApp {
       });
       this.renderPortsTable();
       this.renderChassisPreview();
-      this.bridge.notifyChanged();
+      this.changed();
     });
   }
 
@@ -245,75 +263,56 @@ export class DeviceLibraryApp {
     await this.searchLibrary(this.searchInput?.value?.trim() || '');
   }
 
-  async loadFromDiscoveredProject() {
+  /** What the bus knows, through APKSoftapp; the kinds offered are config/discovery.json's. */
+  async startDiscovery() {
+    let kinds = [];
     try {
-      const data = await this.bridge.fetchDiscoveredProject();
-      if (data && (data.devices || data.equipment || data.nodes)) {
-        const raw = data.devices || data.equipment || data.nodes;
-        if (Array.isArray(raw) && raw.length > 0) {
-          const disc = raw.map((d, i) => ({
-            id: d.id || `dev_disc_${i}`,
-            manufacturer: d.manufacturer || d.make || 'Discovered',
-            model: d.model || d.name || `Device ${i + 1}`,
-            partNumber: d.partNumber || d.model || '',
-            category: d.category || 'Audio',
-            ru: d.ru || d.heightRu || 1,
-            depthMm: d.depthMm || 300,
-            basePowerW: d.powerW || 50,
-            btuHr: d.btuHr || 170,
-            slotCount: 0,
-            slots: [],
-            ports: (d.ports || []).map((p, pi) => ({
-              id: p.id || `p${pi + 1}`,
-              name: p.name || p.label || `P${pi + 1}`,
-              type: p.connector || p.type || 'RJ45',
-              signal: p.signal || 'Network',
-              dir: p.dir || 'Bidi',
-              count: 1,
-            })),
-          }));
-          this.library = [...disc, ...this.library];
-          this.selectedDevice = this.library[0];
-          this.render();
-          return;
-        }
-      }
-    } catch (_) {}
+      const res = await fetch('./config/discovery.json', { cache: 'no-store' });
+      if (res.ok) kinds = (await res.json()).kinds || [];
+    } catch (_) { /* no config: every kind */ }
+    const d = await S().discovered({ kinds, onChange: (things) => this.sayDiscovered(things) });
+    this.discovery = d.ok ? d : null;
+    if (!d.ok) this.sayDiscovery(d.reason, 'dead');
+    else this.sayDiscovered(d.things());
+  }
+
+  sayDiscovered(things) {
+    const good = things.filter((t) => t.live && t.live.state === 'good').length;
+    this.sayDiscovery(`${things.length} discovered on the bus (${good} verified in the last ${S().TRUST_MINUTES} min)`,
+      things.length ? (good ? 'good' : 'kinda') : 'kinda');
+  }
+
+  sayDiscovery(text, state) {
+    if (!this.discoveryStatus) return;
+    this.discoveryStatus.textContent = text;
+    this.discoveryStatus.setAttribute('data-apk-state', state);
+  }
+
+  /** Discovered things become unsaved devices (by MAC / serial, once each); size and power stay blank. */
+  addDiscovered() {
+    if (!this.discovery) return;
+    const fresh = newDiscoveredDevices(this.library, this.discovery.things());
+    if (!fresh.length) { this.sayDiscovery('Every discovered device is in the list already.', 'kinda'); return; }
+    this.library = [...fresh, ...this.library];
+    this.selectedDevice = fresh[0];
     this.render();
+    this.changed();
   }
 
   handleBlockLoaded(block, meta = {}) {
-    if (!block) return;
-    const loadedDev = {
-      id: block.id || `dev_${Date.now()}`,
-      manufacturer: block.manufacturer || 'Custom',
-      model: block.model || block.name || 'Custom Block Device',
-      partNumber: block.partNumber || '',
-      category: block.category || 'Audio',
-      ru: block.ru || 1,
-      depthMm: block.depthMm || 300,
-      basePowerW: block.basePowerW || block.powerW || 50,
-      btuHr: block.btuHr || 170,
-      slotCount: block.slotCount || 0,
-      slots: block.slots || [],
-      ports: Array.isArray(block.ports) ? block.ports : [],
-    };
+    const loadedDev = deviceFromBlock(block);
+    if (!loadedDev) return;
     this.library.unshift(loadedDev);
     this.selectedDevice = loadedDev;
+    const tag = document.getElementById('block-tag');
+    if (tag) tag.textContent = meta.title || meta.blockName || meta.name || 'DEVICE BLOCK';
     this.render();
   }
 
+  /** Save: into the drawing inside the CAD, a .json download standalone. */
   saveBlock() {
     if (!this.selectedDevice) return;
-    const block = {
-      type: 'device',
-      ...this.selectedDevice,
-      timestamp: new Date().toISOString(),
-    };
-    this.bridge.saveBlock(block, {
-      title: `${this.selectedDevice.manufacturer} ${this.selectedDevice.model}`,
-      filename: `device_${this.selectedDevice.model.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
-    });
+    this.host.save(deviceToBlock(this.selectedDevice), deviceMeta(this.selectedDevice));
   }
 
   render() {
@@ -366,83 +365,38 @@ export class DeviceLibraryApp {
     this.inputBtu.value = this.selectedDevice.btuHr ?? '';
   }
 
-  renderPortsTable() {
-    if (!this.portTableBody || !this.selectedDevice) return;
-    this.portTableBody.innerHTML = '';
-    const ports = this.selectedDevice.ports || [];
-
-    const extra = (list, value) => (value && !list.includes(value)
-      ? `<option value="${String(value).replace(/"/g, '&quot;')}" selected>${String(value).replace(/</g, '&lt;')}</option>` : '');
-    const TYPES = ['RJ45', 'XLR-F', 'XLR-M', 'Phoenix-Euroblock', 'BNC', 'HDMI', 'USB-B', 'USB-C', 'SFP', 'Terminal-Strip', 'IEC-C14'];
-    const SIGNALS = ['Analog Audio', 'Digital Audio', 'Network', 'Video', 'Serial Control', 'AC Power', 'RF Antenna'];
-    ports.forEach((port, idx) => {
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td><input type="text" class="cell-input" data-idx="${idx}" data-field="name" value="${String(port.name ?? '').replace(/"/g, '&quot;')}"></td>
-        <td>
-          <select class="cell-input" data-idx="${idx}" data-field="type">
-            ${extra(TYPES, port.type)}
-            <option value="RJ45" ${port.type === 'RJ45' ? 'selected' : ''}>RJ45</option>
-            <option value="XLR-F" ${port.type === 'XLR-F' ? 'selected' : ''}>XLR-F</option>
-            <option value="XLR-M" ${port.type === 'XLR-M' ? 'selected' : ''}>XLR-M</option>
-            <option value="Phoenix-Euroblock" ${port.type === 'Phoenix-Euroblock' ? 'selected' : ''}>Phoenix / Euroblock</option>
-            <option value="BNC" ${port.type === 'BNC' ? 'selected' : ''}>BNC</option>
-            <option value="HDMI" ${port.type === 'HDMI' ? 'selected' : ''}>HDMI</option>
-            <option value="USB-B" ${port.type === 'USB-B' ? 'selected' : ''}>USB-B</option>
-            <option value="USB-C" ${port.type === 'USB-C' ? 'selected' : ''}>USB-C</option>
-            <option value="SFP" ${port.type === 'SFP' ? 'selected' : ''}>SFP/Optical</option>
-            <option value="Terminal-Strip" ${port.type === 'Terminal-Strip' ? 'selected' : ''}>Terminal Strip</option>
-            <option value="IEC-C14" ${port.type === 'IEC-C14' ? 'selected' : ''}>IEC Power</option>
-          </select>
-        </td>
-        <td>
-          <select class="cell-input" data-idx="${idx}" data-field="signal">
-            ${extra(SIGNALS, port.signal)}
-            <option value="Analog Audio" ${port.signal === 'Analog Audio' ? 'selected' : ''}>Analog Audio</option>
-            <option value="Digital Audio" ${port.signal === 'Digital Audio' ? 'selected' : ''}>Digital Audio</option>
-            <option value="Network" ${port.signal === 'Network' ? 'selected' : ''}>Network</option>
-            <option value="Video" ${port.signal === 'Video' ? 'selected' : ''}>Video</option>
-            <option value="Serial Control" ${port.signal === 'Serial Control' ? 'selected' : ''}>Serial Control</option>
-            <option value="AC Power" ${port.signal === 'AC Power' ? 'selected' : ''}>AC Power</option>
-            <option value="RF Antenna" ${port.signal === 'RF Antenna' ? 'selected' : ''}>RF Antenna</option>
-          </select>
-        </td>
-        <td>
-          <select class="cell-input" data-idx="${idx}" data-field="dir">
-            <option value="In" ${port.dir === 'In' ? 'selected' : ''}>Input</option>
-            <option value="Out" ${port.dir === 'Out' ? 'selected' : ''}>Output</option>
-            <option value="Bidi" ${port.dir === 'Bidi' ? 'selected' : ''}>Bi-directional</option>
-          </select>
-        </td>
-        <td style="width:50px;"><input type="number" class="cell-input text-center" data-idx="${idx}" data-field="count" value="${port.count || 1}"></td>
-        <td class="col-actions">
-          <button class="btn-icon btn-del-port" data-idx="${idx}" title="Delete Port">🗑</button>
-        </td>
-      `;
-      this.portTableBody.appendChild(tr);
-    });
-
-    this.portTableBody.querySelectorAll('.cell-input').forEach(input => {
-      input.addEventListener('input', (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
-        const f = e.target.dataset.field;
-        let val = e.target.value;
-        if (f === 'count') val = parseInt(val, 10) || 1;
-        this.selectedDevice.ports[i][f] = val;
+  createPortsTable() {
+    if (!this.portTableHost) return;
+    this.portsTable = window.APKTable.create(this.portTableHost, {
+      id: 'device-ports',
+      columns: [
+        { key: 'name', label: 'Port Group / Name' },
+        { key: 'type', label: 'Connector', type: 'select', options: PORT_TYPES },
+        { key: 'signal', label: 'Signal', type: 'select', options: PORT_SIGNALS },
+        { key: 'dir', label: 'Direction', type: 'select', options: PORT_DIRS },
+        { key: 'count', label: 'Qty', type: 'number', width: '50px' },
+      ],
+      rows: [],
+      onEdit: (i, key, value, row) => {
+        if (key === 'count') row.count = parseInt(value, 10) || 1;
         this.renderChassisPreview();
-        this.bridge.notifyChanged();
-      });
-    });
-
-    this.portTableBody.querySelectorAll('.btn-del-port').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        const i = parseInt(e.target.dataset.idx, 10);
+        this.changed();
+      },
+      onDelete: (i) => {
         this.selectedDevice.ports.splice(i, 1);
         this.renderPortsTable();
         this.renderChassisPreview();
-        this.bridge.notifyChanged();
-      });
+        this.changed();
+      },
+      empty: 'No ports yet: + Add Port Interface.',
     });
+  }
+
+  /** The rows are the device's own ports: an edit lands on the device. */
+  renderPortsTable() {
+    if (!this.portsTable || !this.selectedDevice) return;
+    if (!Array.isArray(this.selectedDevice.ports)) this.selectedDevice.ports = [];
+    this.portsTable.setRows(this.selectedDevice.ports);
   }
 
   renderChassisPreview() {
