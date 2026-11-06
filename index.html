@@ -133,6 +133,13 @@
       <button class="btn btn-secondary" id="btn-save-library" title="Save this device to the shared BIM library (DATABASE.server.BIM)">
         <span class="btn-icon">📚</span> Save to Library
       </button>
+      <button class="btn btn-secondary" id="btn-export-ifc" title="Download this library part as its IFC4X3 type file (GET /api/bim/parts/&lt;id&gt;.ifc)">
+        <span class="btn-icon">⬇</span> Export .ifc
+      </button>
+      <button class="btn btn-secondary" id="btn-import-ifc" title="Read an IFC type file into the editor (the server's importer, dry run); Save to Library then stores it">
+        <span class="btn-icon">⬆</span> Import .ifc
+      </button>
+      <input type="file" id="input-import-ifc" accept=".ifc,model/step,application/x-step" hidden>
       <button class="btn btn-primary" id="btn-save" title="Save & Return modified block to caller">
         <span class="btn-icon">💾</span> Save & Return
       </button>

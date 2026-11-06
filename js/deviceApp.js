@@ -14,6 +14,7 @@ import {
 } from './bimLibrary.js';
 
 import { loadExpansionCards, cardFor } from './expansionCards.js';
+import { exportPartIfc, importPartIfc, readIfcTypes, pickType, downloadText } from './bimIfc.js';
 import { libraryButton, acceptLibraryDrops, bimFields, loadLibrary } from './bimLibraryPicker.js';
 
 export class DeviceLibraryApp {
@@ -32,11 +33,13 @@ export class DeviceLibraryApp {
       inputs: [
         { name: 'BIM library', from: 'DATABASE.server.BIM at /api/bim (search, read a part; ?bim= overrides, ?part= opens one)' },
         { name: 'Device block', from: 'the CAD (when opened from a drawing), or a .json file via Open', kind: 'file' },
+        { name: 'IFC type file', from: 'a .ifc via Import .ifc: read here, then by the BIM importer as a dry run', kind: 'file' },
         { name: 'Discovered devices', from: 'the bus: things scanners and agents found (kinds in config/discovery.json)', kind: 'bus' },
         { name: 'Live instances', from: 'the BIM library: the bench devices of this part and the panel each presents on the bus' },
       ],
       outputs: [
         { name: 'BIM part', to: 'the BIM library on Save to Library; Delete removes it for everyone' },
+        { name: 'IFC type file', to: 'a download on Export .ifc (GET /api/bim/parts/<id>.ifc)', kind: 'file' },
         { name: 'Device block', to: 'the CAD on Save & Return and on every edit; standalone Save downloads a .json', kind: 'file' },
       ],
       controls: [
@@ -48,6 +51,7 @@ export class DeviceLibraryApp {
         { name: 'Discovered', how: 'add what the bus found as unsaved devices' },
         { name: 'Open its panel', how: 'when the part is live on the bench, opens the panel it presents on the bus' },
         { name: 'Open / Save to Library / Save & Return / Close', how: 'header buttons' },
+        { name: 'Export .ifc / Import .ifc', how: 'the part as its IFC type file out; an IFC type file in, shown unsaved until Save to Library' },
       ],
       problems: ['fetch_failed', 'http_not_found', 'http_forbidden', 'http_server_error', 'bad_json', 'bad_input', 'file_unreadable', 'save_failed', 'not_in_cad', 'bus_missing'],
     });
@@ -106,6 +110,9 @@ export class DeviceLibraryApp {
     this.chassisStage = document.getElementById('chassis-preview-stage');
 
     this.btnSaveLibrary = document.getElementById('btn-save-library');
+    this.btnExportIfc = document.getElementById('btn-export-ifc');
+    this.btnImportIfc = document.getElementById('btn-import-ifc');
+    this.inputImportIfc = document.getElementById('input-import-ifc');
     this.statusEl = document.getElementById('library-status');
     if (this.selectCategory) {
       this.selectCategory.replaceChildren(...BIM_CATEGORIES.map(c => new Option(c, c)));
@@ -220,10 +227,63 @@ export class DeviceLibraryApp {
     }
   }
 
+  /** Export .ifc: the library part's own IFC4X3 type file (an unsaved device has none yet). */
+  async exportIfc() {
+    const dev = this.selectedDevice;
+    if (!dev?.bimId) {
+      this.setStatus('Save to Library first: the .ifc is the library part\'s', true);
+      return null;
+    }
+    try {
+      const text = await exportPartIfc(dev.bimId);
+      downloadText(text, `${dev.bimId.replace('/', '_')}.ifc`);
+      this.setStatus(`Exported ${dev.bimId}.ifc`);
+      return text;
+    } catch (e) {
+      this.setStatus(e.message, true);
+      S().showProblem(e, { subject: `Export ${dev.bimId}.ifc`, onRetry: () => this.exportIfc() });
+      return null;
+    }
+  }
+
+  /** Import .ifc: read the file here, then the server's importer as a dry run; the part opens unsaved. */
+  async importIfc(file) {
+    if (!file) return null;
+    try {
+      const text = await file.text();
+      const types = readIfcTypes(text);
+      const t = pickType(types, this.selectedDevice?.bimId)
+        || (types.length > 1 ? types.find(x => x.partId === prompt(`This file holds ${types.length} types — which one?\n${types.map(x => x.partId).join('\n')}`)) : null);
+      if (!t) throw Object.assign(new Error(types.length ? 'no type picked' : 'the file holds no IFC type with a manufacturer'), { code: 'bad_input' });
+      const { part, problems = [], warnings = [] } = await importPartIfc(text, t.partId);
+      const dev = partToDevice(part);
+      dev.imported = { from: file.name, entity: t.entity };   // unsaved until Save to Library
+      const i = this.library.findIndex(d => d.bimId === dev.bimId);
+      if (i !== -1) this.library[i] = dev; else this.library.unshift(dev);
+      this.selectedDevice = dev;
+      this.render();
+      this.changed();
+      const notes = [...problems, ...warnings].length;
+      this.setStatus(`Read ${t.partId} from ${file.name} — review it, then Save to Library${notes ? ` (${notes} note${notes === 1 ? '' : 's'})` : ''}`);
+      return dev;
+    } catch (e) {
+      this.setStatus(e.message, true);
+      S().showProblem(e, { subject: `Import ${file.name}`, fix: ['An IFC4 / IFC4X3 type file (one type with Pset_ManufacturerTypeInformation) is what the importer reads.'] });
+      return null;
+    }
+  }
+
   attachEvents() {
     this.btnOpen?.addEventListener('click', () => this.promptOpen());
     this.btnSave?.addEventListener('click', () => this.saveBlock());
     this.btnSaveLibrary?.addEventListener('click', () => this.saveToLibrary());
+    this.btnExportIfc?.addEventListener('click', () => this.exportIfc());
+    this.btnImportIfc?.addEventListener('click', () => this.inputImportIfc?.click());
+    this.inputImportIfc?.addEventListener('change', (e) => {
+      const f = e.target.files?.[0];
+      e.target.value = '';
+      if (f) void this.importIfc(f);
+    });
     this.btnClose?.addEventListener('click', () => this.host.close());
     this.btnSyncDiscovered?.addEventListener('click', () => this.addDiscovered());
 
