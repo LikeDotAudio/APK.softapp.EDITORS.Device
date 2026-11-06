@@ -58,6 +58,8 @@ export function partToDevice(part) {
       count: p.count || 1,
       _bim: p                       // the part's own port, so a save keeps domain/labels/face
     })),
+    // its BIM reference {part, url, rev} (ROAD-3572): saved with the device block
+    ...(part.ref && part.ref.part ? { bimRef: { part: part.ref.part, url: part.ref.url || '', rev: part.ref.rev || '' } } : {}),
     _part: part                     // everything the editor does not show (media, ext, aka…)
   };
 }

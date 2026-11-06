@@ -31,6 +31,7 @@ export function deviceFromBlock(block, now = Date.now()) {
     slots: Array.isArray(block.slots) ? block.slots : [],
     ports: Array.isArray(block.ports) ? block.ports.map((p) => ({ ...p })) : [],
     ...(block.bimId ? { bimId: block.bimId } : {}),
+    ...(block.bimRef && block.bimRef.part ? { bimRef: { ...block.bimRef } } : {}),
     ...(block.identity ? { identity: block.identity } : {}),
   };
 }

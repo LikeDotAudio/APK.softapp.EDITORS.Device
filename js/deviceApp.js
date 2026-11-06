@@ -14,6 +14,7 @@ import {
 } from './bimLibrary.js';
 
 import { loadExpansionCards, cardFor } from './expansionCards.js';
+import { libraryButton, acceptLibraryDrops, bimFields } from './bimLibraryPicker.js';
 
 export class DeviceLibraryApp {
   constructor() {
@@ -40,6 +41,7 @@ export class DeviceLibraryApp {
       ],
       controls: [
         { name: 'Search', how: 'type to search the library (maker, model, connector); click a device to edit it' },
+        { name: '📚 Library', how: 'call up the shared BIM library picker (Ctrl+Shift+L), or drop a part dragged from it on the list: the part opens here with its BIM reference' },
         { name: '+ New / Duplicate / Delete', how: 'start, copy or remove a device (Delete asks first for a library part)' },
         { name: 'Manufacturer ... BTU', how: 'device fields; the panel drawing follows (depth in mm)' },
         { name: '+ Add Port Interface', how: 'add a port; edit name, connector, signal, direction, count in the table' },
@@ -137,6 +139,22 @@ export class DeviceLibraryApp {
     else this.renderDeviceList();
   }
 
+  /** A pick from the library ({bim, ref}) opened as the device: its full part when /api/bim answers,
+      else the picked row; either way with the pick's BIM reference. */
+  async openPick(item) {
+    const { bimId, bimRef } = bimFields(item);
+    let dev;
+    try { dev = partToDevice(await getPart(bimId)); } catch (_) { dev = partToDevice(item.bim); }
+    if (bimRef) dev.bimRef = bimRef;
+    const i = this.library.findIndex(d => d.bimId === bimId);
+    if (i !== -1) this.library[i] = dev; else this.library.unshift(dev);
+    this.selectedDevice = dev;
+    this.render();
+    this.showLive(dev);
+    this.changed();
+    return dev;
+  }
+
   /** Select a device; a library summary is swapped for its full part first. */
   async select(dev) {
     if (dev && dev.bimId && !dev._part) {
@@ -214,6 +232,11 @@ export class DeviceLibraryApp {
       this.searchTimer = setTimeout(() => this.searchLibrary(q), 250);
     });
 
+    // 📚 Library (ROAD-3572): the shared picker — the part opens here, its BIM reference kept on the device block
+    const openItems = (items) => { if (items[0]) void this.openPick(items[0]); };
+    this.btnNewDevice?.before(libraryButton(openItems, { className: 'btn btn-secondary btn-sm', title: 'Open a part from the BIM library' }));
+    if (this.deviceListEl) acceptLibraryDrops(this.deviceListEl, (it) => openItems([it]));
+
     this.btnNewDevice?.addEventListener('click', () => {
       const newDev = {
         id: `dev_${Date.now()}`,
@@ -245,6 +268,7 @@ export class DeviceLibraryApp {
       dup.id = `dev_${Date.now()}`;
       dup.model += ' (Copy)';
       delete dup.bimId;              // unsaved until Save to Library; keeps _part's media/ext as a starting point
+      delete dup.bimRef;             // a copy is not that part
       this.library.unshift(dup);
       this.selectedDevice = dup;
       this.render();
@@ -704,7 +728,9 @@ export class DeviceLibraryStore {
 }
 
 if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
-    window.deviceApp = new DeviceLibraryApp();
-  });
+  // vocabulary.js awaits its config at the top level, so this module can finish after
+  // DOMContentLoaded has fired: start now when it has (the editor never started otherwise)
+  const start = () => { window.deviceApp = new DeviceLibraryApp(); };
+  if (document.readyState === 'loading') window.addEventListener('DOMContentLoaded', start);
+  else start();
 }

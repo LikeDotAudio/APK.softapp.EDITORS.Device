@@ -38,3 +38,14 @@ test('editing keeps unknowns unknown and renames to a new id', () => {
   assert.equal(back.physical, undefined);
   assert.equal(back.name, undefined);           // the old name described the old model
 });
+
+test('a part read from the library brings its BIM reference, and the device block keeps it (ROAD-3572)', async () => {
+  const ref = { part: 'qsc/core-110f', url: '/api/bim/parts/qsc/core-110f', rev: 'r1' };
+  const dev = partToDevice({ ...PART, ref });
+  assert.deepEqual(dev.bimRef, ref);
+  const { deviceToBlock, deviceFromBlock } = await import('../js/deviceBlock.js');
+  const block = deviceToBlock(dev);
+  assert.deepEqual(block.bimRef, ref);
+  assert.deepEqual(deviceFromBlock(block).bimRef, ref, 'a block opened again keeps it');
+  assert.equal(deviceFromBlock({ manufacturer: 'Typed', model: 'By hand' }).bimRef, undefined, 'an old block without one still opens');
+});
