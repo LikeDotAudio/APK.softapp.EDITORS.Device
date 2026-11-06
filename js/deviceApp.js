@@ -15,6 +15,7 @@ import {
 
 import { loadExpansionCards, cardFor } from './expansionCards.js';
 import { exportPartIfc, importPartIfc, readIfcTypes, pickType, downloadText } from './bimIfc.js';
+import { deviceToIfc, deviceFromIfc, schemaOf } from './deviceIfc.js';
 import { libraryButton, acceptLibraryDrops, bimFields, loadLibrary } from './bimLibraryPicker.js';
 
 export class DeviceLibraryApp {
@@ -32,7 +33,7 @@ export class DeviceLibraryApp {
       does: 'Edits one device of the BIM library: maker, model, rack size, depth, power, heat and its port interfaces, drawn as a 19-inch front panel.',
       inputs: [
         { name: 'BIM library', from: 'DATABASE.server.BIM at /api/bim (search, read a part; ?bim= overrides, ?part= opens one)' },
-        { name: 'Device block', from: 'the CAD (when opened from a drawing), or a .json file via Open', kind: 'file' },
+        { name: 'Device block', from: 'the CAD (when opened from a drawing), or via Open a .json or its .ifc twin', kind: 'file' },
         { name: 'IFC type file', from: 'a .ifc via Import .ifc: read here, then by the BIM importer as a dry run', kind: 'file' },
         { name: 'Discovered devices', from: 'the bus: things scanners and agents found (kinds in config/discovery.json)', kind: 'bus' },
         { name: 'Live instances', from: 'the BIM library: the bench devices of this part and the panel each presents on the bus' },
@@ -40,7 +41,8 @@ export class DeviceLibraryApp {
       outputs: [
         { name: 'BIM part', to: 'the BIM library on Save to Library; Delete removes it for everyone' },
         { name: 'IFC type file', to: 'a download on Export .ifc (GET /api/bim/parts/<id>.ifc)', kind: 'file' },
-        { name: 'Device block', to: 'the CAD on Save & Return and on every edit; standalone Save downloads a .json', kind: 'file' },
+        { name: 'Device block', to: 'the CAD on Save & Return and on every edit; standalone, device_<model>.json beside its .ifc twin (Save Model)', kind: 'file' },
+        { name: 'IFC twin', to: 'device_<model>.ifc (IFC4X3_ADD2) with the .json when standalone: the device as its type (the library part\'s GlobalId when it is one) and one occurrence with a port per terminal', kind: 'file' },
       ],
       controls: [
         { name: 'Search', how: 'type to search the library (maker, model, connector); click a device to edit it' },
@@ -221,7 +223,7 @@ export class DeviceLibraryApp {
       this.setStatus(e.message, true);
       S().showProblem(e, {
         subject: `Save to Library: ${dev.manufacturer} ${dev.model}`,
-        fix: ['The device is still on screen and unsaved: Save & Return (or its .json download) keeps a copy meanwhile.'],
+        fix: ['The device is still on screen and unsaved: Save & Return (standalone, its .json and .ifc twin) keeps a copy meanwhile.'],
         onRetry: () => this.saveToLibrary(),
       });
     }
@@ -472,10 +474,18 @@ export class DeviceLibraryApp {
     this.render();
   }
 
-  /** Save: into the drawing inside the CAD, a .json download standalone. */
-  saveBlock() {
-    if (!this.selectedDevice) return;
-    this.host.save(deviceToBlock(this.selectedDevice), deviceMeta(this.selectedDevice));
+  /** Save: into the drawing inside the CAD. Standalone: the block and its .ifc twin (deviceIfc.js), both
+      or neither (Save Model). */
+  async saveBlock() {
+    if (!this.selectedDevice) return '';
+    const block = deviceToBlock(this.selectedDevice);
+    const meta = deviceMeta(this.selectedDevice);
+    const A = S();
+    if (this.host.embedded || typeof A.saveModel !== 'function') return this.host.save(block, meta);
+    const r = await A.saveModel(block, { name: meta.filename, toIfc: (b) => deviceToIfc(b, { name: meta.filename }) });
+    if (!r.ok && !r.cancelled) A.showProblem(r.problem || 'save_failed', { onRetry: () => this.saveBlock() });
+    if (r.ok) this.setStatus(`Saved ${r.files.join(' + ')}`);
+    return r.ok ? r.via : '';
   }
 
   render() {
@@ -641,34 +651,24 @@ export class DeviceLibraryApp {
     `;
   }
 
-  promptOpen() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onerror = () => S().showProblem('file_unreadable', {
-        subject: file.name, detail: reader.error && reader.error.message, onRetry: () => this.promptOpen(),
+  /** Open: a device block .json, or its .ifc twin (deviceIfc.js). A library type file is ⬆ Import .ifc's. */
+  async promptOpen() {
+    const A = S();
+    const r = await A.openModel({
+      fromIfc: (text) => deviceFromIfc(text),
+      fromJson: (parsed) => {
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new TypeError('the file holds no device object');
+        return parsed;
+      },
+    });
+    if (!r.ok) {
+      if (!r.cancelled) A.showProblem(r.problem, {
+        fix: ['Open a device block .json (standalone Save writes one, with its .ifc twin), or that .ifc; a library type file goes in with ⬆ Import .ifc.'],
+        onRetry: () => this.promptOpen(),
       });
-      reader.onload = (re) => {
-        try {
-          const parsed = JSON.parse(re.target.result);
-          if (!parsed || typeof parsed !== 'object') throw new TypeError('the file holds no device object');
-          this.handleBlockLoaded(parsed, { title: file.name });
-        } catch (err) {
-          S().showProblem(err instanceof SyntaxError ? 'bad_json' : 'bad_input', {
-            subject: file.name,
-            detail: err.message,
-            fix: ['Open a device block .json (Save & Return outside the CAD downloads one).'],
-            onRetry: () => this.promptOpen(),
-          });
-        }
-      };
-      reader.readAsText(file);
-    };
-    input.click();
+      return;
+    }
+    this.handleBlockLoaded(r.model, { title: r.kind === 'ifc' ? `${r.name} · ${schemaOf(r.text)}` : r.name });
   }
 }
 
