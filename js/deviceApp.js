@@ -14,7 +14,7 @@ import {
 } from './bimLibrary.js';
 
 import { loadExpansionCards, cardFor } from './expansionCards.js';
-import { libraryButton, acceptLibraryDrops, bimFields } from './bimLibraryPicker.js';
+import { libraryButton, acceptLibraryDrops, bimFields, loadLibrary } from './bimLibraryPicker.js';
 
 export class DeviceLibraryApp {
   constructor() {
@@ -178,9 +178,10 @@ export class DeviceLibraryApp {
     this.btnLiveGui?.remove();
     this.btnLiveGui = null;
     if (!dev?.bimId) return;
+    // the bench's boxes of this part: the one picker carries them (APKLibrary.liveDevices, ROAD-3596)
     let lib;
-    try { lib = await import(`${bimApi()}/ui/picker.js`); } catch (_) { return; }
-    const live = await lib.liveDevices(dev.bimId);
+    try { lib = await loadLibrary(); } catch (_) { return; }
+    const live = await lib.liveDevices(dev.bimId, bimApi());
     if (this.selectedDevice !== dev) return;
     const online = live.filter(d => d.state === 'online');
     const target = online.find(d => d.panel?.prefix);
