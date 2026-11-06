@@ -1,6 +1,6 @@
 {
   "name": "device-chassis-editor",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Device & Equipment Chassis Editor Softapp on APK.audio",
   "type": "module",
   "scripts": {
