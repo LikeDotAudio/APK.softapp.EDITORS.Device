@@ -49,3 +49,11 @@ test('a part read from the library brings its BIM reference, and the device bloc
   assert.deepEqual(deviceFromBlock(block).bimRef, ref, 'a block opened again keeps it');
   assert.equal(deviceFromBlock({ manufacturer: 'Typed', model: 'By hand' }).bimRef, undefined, 'an old block without one still opens');
 });
+
+test('BIM_CATEGORIES is the IFC mapping\'s category list, Concepts included', async () => {
+  const { BIM_CATEGORIES } = await import('../js/bimLibrary.js');
+  const { existsSync, readFileSync } = await import('node:fs');
+  const mapping = new URL('../../../../../../contracts/ifc/mapping.json', import.meta.url);
+  assert.ok(BIM_CATEGORIES.includes('Concepts'));
+  if (existsSync(mapping)) assert.deepEqual(BIM_CATEGORIES, Object.keys(JSON.parse(readFileSync(mapping, 'utf8')).categories));
+});

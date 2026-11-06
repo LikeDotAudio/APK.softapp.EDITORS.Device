@@ -11,7 +11,7 @@
 
 export const BIM_CATEGORIES = [
   'Audio', 'Microphones', 'Video', 'Network', 'Control', 'Power',
-  'Infrastructure', 'Test & Measurement', 'Computing', 'Accessories', 'Other'
+  'Infrastructure', 'Test & Measurement', 'Computing', 'Accessories', 'Concepts', 'Other'
 ];
 
 const DIR_TO_SIDE = { In: 'input', Out: 'output', Bidi: 'connection' };
